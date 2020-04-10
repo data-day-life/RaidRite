@@ -155,8 +155,8 @@ input:focus, textarea:focus, select:focus{
 }
 
 .menu_button{
-    font-size: 30px;
-    color:rgb(226, 226, 226);
+    width: 30px;
+    height: 60px;
     background: transparent;
     display: none;
     border: none;
@@ -174,9 +174,9 @@ input:focus, textarea:focus, select:focus{
     cursor: pointer;
 }
 
-@media only screen and (max-width: 850px) {
+@media only screen and (max-width: 950px) {
 
-    .Logo{
+    .logo{
         min-width: 73px;
         min-height: 43px;
         width: 73px;
@@ -202,10 +202,30 @@ input:focus, textarea:focus, select:focus{
 @media only screen and (max-width: 730px) {
 
     .navlinks{
-
-        display: none;
+        background-color: gray;
+        text-align: center;
         
+        width: 150px;
+        position: fixed;
+        display: grid;
+        grid-template-rows: auto auto auto auto;
+        grid-template-columns: auto;
+        padding: 10px;
+        right:-180px;
+        top: 70px;
+        transition: right 0.5s;
     }
+
+    .menu_active{
+        right: 0px;
+    }
+
+    .navlink{
+        line-height: 40px;
+        padding: 0px;
+
+    }
+
 
     .menu_button{
 
@@ -240,6 +260,10 @@ input:focus, textarea:focus, select:focus{
 
         text-align: center;
     }
+
+
+
+
   }
 
 
@@ -254,6 +278,7 @@ input:focus, textarea:focus, select:focus{
   }
 
 
+
   #content_results{
     grid-template-columns: auto 300px 300px 300px 300px 300px auto;
     grid-template-rows: auto;
@@ -264,7 +289,7 @@ input:focus, textarea:focus, select:focus{
 .result_card{
     display: block;
     width: auto;
-    height: auto;
+    height: 170px;
     background-color: rgb(54, 57, 63);
     position: relative;
     outline: solid 5px rgb(54, 57, 63);
@@ -378,4 +403,16 @@ input:focus, textarea:focus, select:focus{
         text-decoration: none;
         color: rgb(226, 226, 226);
         border-bottom: 4px solid rgb(54, 57, 63);
+}
+
+.invalid{
+    box-shadow: inset 0px 0px 5px red;
+}
+
+#nav_links{
+    
+    
+    white-space: nowrap; 
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
