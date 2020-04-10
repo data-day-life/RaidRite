@@ -211,7 +211,7 @@ input:focus, textarea:focus, select:focus{
     }
 
     .navlinks{
-        background-color: gray;
+        background-color: rgb(54, 57, 63);
         text-align: center;
         
         width: 150px;
@@ -222,7 +222,7 @@ input:focus, textarea:focus, select:focus{
         padding: 10px;
         right:-180px;
         top: 70px;
-        transition: right 0.5s;
+        transition: right 0.25s;
     }
 
     .menu_active{
@@ -239,9 +239,12 @@ input:focus, textarea:focus, select:focus{
     .menu_button{
 
         display: inline;
-
+        
     }
 
+    .menu_button:focus{
+        outline: none;
+    }
    
 
     .navbar{
