@@ -17,6 +17,7 @@ def main():
     start_time = perf_counter()
 
     streamer_uid = get_name_info('ryrythebritishguy')['twitch_uid']
+    #streamer_uid = get_name_info('stroopc')['twitch_uid']
     tc = TwitchClient(streamer_uid, n_followers, n_followings)
 
     # Check: get followers for streamer
@@ -40,7 +41,6 @@ def main():
 
     print(f'Run time: {perf_counter() - start_time}')
     print(json.dumps(final_results, indent=2))
-
 
 def logging_setup():
     # logger = logging.getLogger()
