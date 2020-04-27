@@ -4,6 +4,9 @@ import requests
 from app.auth import Auth
 from collections import namedtuple, Counter
 from time import perf_counter
+from dateutil.parser import parse as dt_parse
+from datetime import datetime as dt
+from pytz import utc
 
 module_logger = logging.getLogger(__name__+'.py')
 auth_args = {'client_id': settings.TWITCH_CLIENT_ID, 'client_secret': settings.TWITCH_CLIENT_SECRET}
@@ -199,14 +202,17 @@ class TwitchClient:
         resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
         live_list = resp['data']
 
+        # Collect all remaining live streams
         if len(streamer_uid_list) > req_batch_sz:
-            # Collect all remaining live streams
             for next_batch in range(req_batch_sz, len(streamer_uid_list), req_batch_sz):
                 q_params = {'user_id': streamer_uid_list[next_batch:next_batch+req_batch_sz], 'first': req_batch_sz}
                 resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
                 live_list.extend(resp['data'])
 
-        # TODO: FORMAT stream_duration for {'started_at': '2020-04-26T15:11:03Z'}
+        def duration(twitch_time):
+            diff = (dt.now(utc) - dt_parse(twitch_time)).total_seconds()
+            return f'{int(diff//3600)}hr {int((diff%3600)//60)}min'
+
         live_list = {
             usr['user_id']: {
                      'name': usr['user_name'],
@@ -214,7 +220,7 @@ class TwitchClient:
                      'stream_url': 'https://www.twitch.tv/' + usr['user_name'],
                      'thumbnail_url': usr['thumbnail_url'],
                      'viewer_count': usr['viewer_count'],
-                     'stream_duration': usr['started_at'],
+                     'stream_duration': duration(usr['started_at']),
                      'lang': usr['language']
                     }
             for usr in live_list}
