@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 from dateutil import parser
+from app import settings
 import pytz
 
 
@@ -8,26 +9,14 @@ class Auth:
     # String formatted version of timestamp returned by twitch
     twitch_time_fmt = '%a, %d %b %Y %H:%M:%S %Z'
 
-    def __init__(self, **kwargs):
-        if 'client_id' not in kwargs and 'client_secret' not in kwargs:
-            raise ValueError("'client_id' and 'client_secret' must be provided as dictionary.")
-
+    def __init__(self):
         # Initialize class attributes
-        self.client_id = kwargs.pop('client_id')
-        self.client_secret = kwargs.pop('client_secret')
+        self.client_id = settings.TWITCH_CLIENT_ID
+        self.client_secret = settings.TWITCH_CLIENT_SECRET
         self.auth_tok = None
         self.bear_tok = None
         self.fetched_at = None
         self.expires_at = None
-
-        # Set attributes using supplied kwargs (a twitch_uid is expected)
-        for key, val in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, val)
-
-        # Request a new auth token if not supplied as an argument or if supplied auth_token was not valid
-        if ('auth_tok' not in kwargs) or (not self.validate()):
-            self.get_token()
 
     def get_token(self):
         oauth_url = 'https://id.twitch.tv/oauth2/token'
