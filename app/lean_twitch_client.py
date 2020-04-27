@@ -1,5 +1,4 @@
 import logging
-from app import settings
 import requests
 from app.auth import Auth
 from collections import namedtuple, Counter
@@ -9,12 +8,11 @@ from datetime import datetime as dt
 from pytz import utc
 
 module_logger = logging.getLogger(__name__+'.py')
-auth_args = {'client_id': settings.TWITCH_CLIENT_ID, 'client_secret': settings.TWITCH_CLIENT_SECRET}
-auth = Auth(**auth_args)
-bear_token = auth.bear_tok
 
 
-def get_name_info(given_name: str) -> dict:
+def get_name_info(given_name: str, bear_token=None) -> dict:
+    if bear_token is None:
+        bear_token = Auth().bear_token
     # Twitch API request parameters
     base_url = 'https://api.twitch.tv/helix/users'
     query_params = {'login': given_name.lower()}
@@ -44,6 +42,8 @@ class TwitchClient:
     MIN_FOLLOWINGS = 2
 
     def __init__(self, streamer_uid, n_followers=100, n_followings=100):
+        self.auth = Auth()
+        self.bear_token = self.auth.bear_token
         self.sess = requests.Session()
         self.streamer = self.Streamer(streamer_uid, 'to_id')
         self.followers_list = None
@@ -68,7 +68,7 @@ class TwitchClient:
         req_batch_sz = 100
         base_url = 'https://api.twitch.tv/helix/users/follows'
         q_params = {to_or_from_id: given_uid, 'first': req_batch_sz}
-        resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+        resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
         try:  # Update pagination cursor for next request batch
             q_params['after'] = resp['pagination']['cursor']
         except KeyError:
@@ -84,7 +84,7 @@ class TwitchClient:
         module_logger.info(f'Collecting {total_follows} follows for "{given_uid}"')
 
         for next_batch in range(req_batch_sz, total_follows, req_batch_sz):
-            resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+            resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
             # Add next_batch to results
             result.extend(resp['data'])
             # Update pagination cursor for next batch
@@ -151,7 +151,7 @@ class TwitchClient:
         base_url = 'https://api.twitch.tv/helix/users/follows'
         query_params = {'to_id': twitch_uid, 'first': 1}
 
-        return self.sess.get(base_url, params=query_params, headers=bear_token).json()['total']
+        return self.sess.get(base_url, params=query_params, headers=self.bear_token).json()['total']
 
 
     def get_similar_streams(self, result_size=10) -> dict:
@@ -212,14 +212,14 @@ class TwitchClient:
         q_params = {'id': streamer_uid_list[:req_batch_sz], 'first': req_batch_sz}
 
         # Fetch live streams for first req_batch_sz candidate streams
-        resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+        resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
         user_data = resp['data']
 
         if len(streamer_uid_list) > req_batch_sz:
             # Collect all remaining live streams
             for next_batch in range(req_batch_sz, len(streamer_uid_list), req_batch_sz):
                 q_params = {'id': streamer_uid_list[next_batch:next_batch+req_batch_sz], 'first': req_batch_sz}
-                resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+                resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
                 user_data.extend(resp['data'])
 
         return {user['id']: user['profile_image_url'] for user in user_data}
@@ -240,14 +240,14 @@ class TwitchClient:
         q_params = {'user_id': streamer_uid_list[:req_batch_sz], 'first': req_batch_sz}
 
         # Fetch live streams for first req_batch_sz candidate streams
-        resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+        resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
         live_list = resp['data']
 
         # Collect all remaining live streams
         if len(streamer_uid_list) > req_batch_sz:
             for next_batch in range(req_batch_sz, len(streamer_uid_list), req_batch_sz):
                 q_params = {'user_id': streamer_uid_list[next_batch:next_batch+req_batch_sz], 'first': req_batch_sz}
-                resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
+                resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
                 live_list.extend(resp['data'])
 
         def duration(twitch_time):
