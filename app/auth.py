@@ -13,8 +13,7 @@ class Auth:
         # Initialize class attributes
         self.client_id = settings.TWITCH_CLIENT_ID
         self.client_secret = settings.TWITCH_CLIENT_SECRET
-        self.auth_tok = None
-        self.bear_tok = None
+        self.auth_tok, self.bear_tok = self.get_token()
         self.fetched_at = None
         self.expires_at = None
 
@@ -38,8 +37,7 @@ class Auth:
             expires_at -= timedelta(days=3)
             self.expires_at = expires_at.strftime(self.twitch_time_fmt)
 
-        # This syntax merges two dictionaries into a single dictionary
-        return {**self.auth_tok, **self.bear_tok}
+        return self.auth_tok, self.bear_tok
 
     def not_expired(self) -> bool:
         return datetime.utcnow().astimezone(tz=pytz.utc) < parser.parse(self.expires_at)
