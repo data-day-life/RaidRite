@@ -4,11 +4,10 @@ from dateutil import parser
 import pytz
 
 
-# String formatted version of timestamp returned by twitch
-twitch_time_fmt = '%a, %d %b %Y %H:%M:%S %Z'
-
-
 class Auth:
+    # String formatted version of timestamp returned by twitch
+    twitch_time_fmt = '%a, %d %b %Y %H:%M:%S %Z'
+
     def __init__(self, **kwargs):
         if 'client_id' not in kwargs and 'client_secret' not in kwargs:
             raise ValueError("'client_id' and 'client_secret' must be provided as dictionary.")
@@ -44,11 +43,11 @@ class Auth:
                 'Client_ID':      self.client_id
                 }
         # Capturing & String-Formatting Token Lifetime Information
-            self.fetched_at = parser.parse(req.headers['date']).strftime(twitch_time_fmt)
+            self.fetched_at = parser.parse(req.headers['date']).strftime(self.twitch_time_fmt)
             expires_at = parser.parse(self.fetched_at) + timedelta(seconds=self.auth_tok['expires_in'])
             # Maintain a 3 day buffer between End-of-Life according to Twitch vs End-of-Life known to this app
             expires_at -= timedelta(days=3)
-            self.expires_at = expires_at.strftime(twitch_time_fmt)
+            self.expires_at = expires_at.strftime(self.twitch_time_fmt)
 
         # This syntax merges two dictionaries into a single dictionary
         return {**self.auth_tok, **self.bear_tok}
