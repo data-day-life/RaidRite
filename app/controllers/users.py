@@ -1,8 +1,18 @@
 from flask import Blueprint, render_template
-
+from app.lean_twitch_client import TwitchClient
+from json import dumps
 users_bp = Blueprint('users_bp', __name__,
                      template_folder='templates',
                      url_prefix='/users')
+
+
+@users_bp.route('/<userid>')
+def get_recs(userid):
+    tc = TwitchClient(userid, n_followers=100, n_followings=100)
+    recs = dumps(tc.get_similar_streams(), indent=2)
+    # TODO: patch this
+    # return render_template(...)
+
 
 @users_bp.route('/<user>')
 def list_user(user):
@@ -19,6 +29,7 @@ def list_user(user):
     # }
 
     return render_template('user.html', **data)
+
 
 @users_bp.route('/')
 def list_users():
