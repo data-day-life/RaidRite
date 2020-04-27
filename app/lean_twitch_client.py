@@ -37,13 +37,8 @@ def get_name_info(given_name: str) -> dict:
 
 
 class TwitchClient:
-    """ Super Class for Twitch Accounts
+    """ This class connects to the Twitch API to collect data for streamers and users. """
 
-    This class connects to the Twitch API to collect data for streamers and users.  Its primary purpose is to collect
-    a list of *followers* for a Streamer or a list of *followings* for non-streamers (TwitchUser).  Results from this
-    class can be used with the DB to lookup a user, add/update a user in the DB, and verify that DB records coincide
-    with Twitch records (e.g., total_followers, or follow_list)
-    """
     Streamer = namedtuple('Streamer', ['uid', 'to_from'], defaults=['to_id'])
     Follower = namedtuple('Follower', ['uid', 'to_from'], defaults=['from_id'])
     MIN_FOLLOWINGS = 2
@@ -58,37 +53,36 @@ class TwitchClient:
         if self.n_followers is None:
             self.n_followers = self.get_total_follows_count(streamer_uid)
 
-    def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> dict:
-        """
-        This function gets followers/followings for a given uid.  This works for collecting followers *to* a streamer
-        as well as followings *from* general Twitch users.
 
-        :param str given_uid: The uid whose followings will be collected. No validation performed; assumed valid.
+    def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> list:
+        """
+        This function collects followers/followings data for a given user id.  This function can be used to collect
+        followers *to* a streamer as well as followings *from* regular Twitch users.
+
+        :param str given_uid: A valid user id whose follows will be collected. No validation performed; assumed valid.
         :param str to_or_from_id: Either 'to_id' (for followers *to* a streamer) or 'from_id' (for followers *from*
-        a regular user); typically self.to_from may be supplied
-        :param int n_follows: Collects data for up to n_follows if specified
-        :return: A dictionary containing 'total_followers' with 'n' keys for each 100 followings
-        :rtype: dict
+        a regular user)
+        :param int n_follows: Collects data for up to n_follows if provided; collects all follows otherwise
+        :return: A list of dictionaries containing all follow information collected from Twitch; parsing left to caller.
         """
-
         req_batch_sz = 100
         base_url = 'https://api.twitch.tv/helix/users/follows'
         q_params = {to_or_from_id: given_uid, 'first': req_batch_sz}
         resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
-        try:  # Update pagination cursor for next 100
+        try:  # Update pagination cursor for next request batch
             q_params['after'] = resp['pagination']['cursor']
         except KeyError:
             pass  # A nonfatal KeyError is thrown for the pagination cursor when user has zero followers
 
+        result = resp['data']
         total_follows = resp['total']
+
         # Modify number of followers to be collected by given parameter if necessary
         if n_follows is not None:
             if n_follows < total_follows:
                 total_follows = n_follows
         module_logger.info(f'Collecting {total_follows} follows for "{given_uid}"')
 
-        # Get 100 follows per batch
-        result = resp['data']
         for next_batch in range(req_batch_sz, total_follows, req_batch_sz):
             resp = self.sess.get(base_url, params=q_params, headers=bear_token).json()
             # Add next_batch to results
@@ -101,7 +95,14 @@ class TwitchClient:
 
         return result
 
-    def get_streamer_followers(self):
+
+    def get_streamer_followers(self) -> list:
+        """
+        Creates a list of follower id's with size self.n_followers for self.streamer.  If n_followers was not provided
+        during initialization of the class object then all followers of a streamer are collected.
+
+        :return: A list of follower ids as strings: ['follower_uid1', 'follower_uid2', ...]
+        """
         if self.followers_list is None:
             followers = self.get_n_follows(self.streamer.uid, self.streamer.to_from, self.n_followers)
             follower_ids = [self.Follower(follower['from_id'], 'from_id') for follower in followers]
@@ -109,9 +110,19 @@ class TwitchClient:
 
         return self.followers_list
 
-    def get_followers_followings(self):
+
+    def get_followers_followings(self) -> dict:
+        """
+        This function aggregates counts of all user id's that a streamer's followers are following.  That is, if a
+        streamer has two followers and both followers are following some other streamer then the aggregated count is
+        collected as {'other_streamer_id: 2}.  This result provides the follower overlap (intersection) between
+        self.streamer and other streamers.
+
+        :return: A dictionary of {'other_streamer_uid1': count, 'other_streamer_uid2': count, ...}
+        """
+
         start_time = perf_counter()
-        # Get streamer's followers if it does not exist
+        # Get streamer's followers if list does not exist
         if self.followers_list is None:
             self.get_streamer_followers()
 
@@ -129,20 +140,32 @@ class TwitchClient:
 
         return self.followings_count
 
+
     def get_total_follows_count(self, twitch_uid: str) -> str:
         """
-        This function gets the follower count of a streamer from twitch
+        This function fetches the count of all followers as reported by Twitch for the supplied twitch_uid.
 
-        :param str twitch_uid: A twitch user id.  No validation is performed; assumed valid.
-        :return: A count of followers as a String
-        :rtype: str
+        :param str twitch_uid: A valid twitch user id.  No validation is performed; assumed valid.
+        :return: A count of total followers as a String.
         """
         base_url = 'https://api.twitch.tv/helix/users/follows'
         query_params = {'to_id': twitch_uid, 'first': 1}
 
         return self.sess.get(base_url, params=query_params, headers=bear_token).json()['total']
 
-    def get_similar_streams(self):
+
+    def get_similar_streams(self, result_size=10) -> dict:
+        """
+        This function handles the "magic" behind retrieving similar streams recommendations.  A list of candidates is
+        created by eliminating candidates below a minimum threshold of follower overlap then further reduced by
+        determining which candidates are currently live.  A similarity score is computed for the list of live candidates
+        before sorting in descending order of similarity.  Profile images are also fetched for the final 'result_size"
+        list of best candidates.
+
+        :param result_size: The desired amount of similar streams.
+        :return: A dictionary formatted as {'1': {best candidate details}, '2': {second best candidate details}, ...}
+        which provides the final json response for the frontend.
+        """
         if self.followings_count is None:
             self.get_followers_followings()
 
@@ -159,8 +182,9 @@ class TwitchClient:
             union_total_followers = streamer_followers_count + self.get_total_follows_count(candidate_id)
             trimmed_candidates[candidate_id] = intersection_total_followers / union_total_followers
 
-        # Sort Candidates in descending order
-        result_size = 10
+        if result_size > len(trimmed_candidates):
+            result_size = len(trimmed_candidates)
+        # Rank Candidates, retaining only 'result_size' final candidates
         ranked_candidates = sorted(trimmed_candidates.items(),
                                    key=lambda similarity: similarity[1], reverse=True)[:result_size]
         ranked_prof_img_urls = self.get_prof_img_url([candidate[0] for candidate in ranked_candidates])
@@ -174,7 +198,14 @@ class TwitchClient:
 
         return final_candidates
 
-    def get_prof_img_url(self, streamer_uid_list: list):
+
+    def get_prof_img_url(self, streamer_uid_list: list) -> dict:
+        """
+        This function collects profile image urls for a given list of (candidate) user ids (strings).
+
+        :param streamer_uid_list: A list of candidate uids for collecting respective profile image urls.
+        :return: A dictionary as {'candidate1_uid': 'profile url', 'candidate2_uid': ...}
+        """
         max_batch_sz = 100
         req_batch_sz = len(streamer_uid_list) if len(streamer_uid_list) < max_batch_sz else max_batch_sz
         base_url = 'https://api.twitch.tv/helix/users'
@@ -193,7 +224,17 @@ class TwitchClient:
 
         return {user['id']: user['profile_image_url'] for user in user_data}
 
-    def get_live_streams(self, streamer_uid_list: list):
+
+    def get_live_streams(self, streamer_uid_list: list) -> dict:
+        """
+        This function takes a streamer_uid_list and returns a dictionary of user id's that are currently broadcasting on
+        Twitch.  It is primarily useful for filtering out a large list of raid candidates that are not live.  This
+        function also provides details for live streams (such as number of viewers and a recent thumbnail of a live
+        broadcast).
+
+        :param streamer_uid_list: A list of candidate streams as user ids (strings).
+        :return: A nested dictionary of live streams information as {'stream_uid1: {details...}, 'stream_uid': ...}
+        """
         req_batch_sz = 100  # CANNOT be larger than 100
         base_url = 'https://api.twitch.tv/helix/streams'
         q_params = {'user_id': streamer_uid_list[:req_batch_sz], 'first': req_batch_sz}
