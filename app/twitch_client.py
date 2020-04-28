@@ -96,7 +96,7 @@ def get_all_follows(given_uid: str, to_or_from_id: str, skip_validation: bool = 
     # Added to avoid excessive token validation when unnecessary (e.g. when running this command a lot)
     if not skip_validation:
         auth_token.validate()
-    bear_token = auth_token.bear_token
+    bear_token = auth_token.__bear_token
 
     # Twitch API request parameters
     base_url = 'https://api.twitch.tv/helix/users/follows'
