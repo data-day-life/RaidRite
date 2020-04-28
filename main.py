@@ -1,4 +1,4 @@
-from app.lean_twitch_client import TwitchClient, get_userinfo
+from app.twitch_client import TwitchClient, get_userinfo
 import logging
 from time import perf_counter
 import json

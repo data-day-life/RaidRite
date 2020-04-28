@@ -1,7 +1,7 @@
 from flask import Flask
 from app.controllers import blueprints
 from flask import render_template
-from app.lean_twitch_client import TwitchClient, get_userinfo
+from app.twitch_client import TwitchClient, get_userinfo
 
 app = Flask(__name__, template_folder='../templates')
 

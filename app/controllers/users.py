@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from app.lean_twitch_client import TwitchClient
+from app.twitch_client import TwitchClient
 from json import dumps
 users_bp = Blueprint('users_bp', __name__,
                      template_folder='templates',
