@@ -10,26 +10,20 @@ from pytz import utc
 module_logger = logging.getLogger(__name__+'.py')
 
 
-def get_name_info(given_name: str, bear_token=None) -> dict:
-    if bear_token is None:
+def get_userinfo(given_name: str, bear_token=None) -> dict:
+    if not bear_token:
         bear_token = Auth().bear_token
-    # Twitch API request parameters
+
     base_url = 'https://api.twitch.tv/helix/users'
-    query_params = {'login': given_name.lower()}
-
-    module_logger.info("Twitch API - 'validate_name()' for: " + '"{}"'.format(str(given_name)))
-    # Request user information from Twitch API
-    with requests.get(base_url, params=query_params, headers=bear_token) as req:
-        req.encoding = 'utf-8'
-        resp = req.json()['data'][0]
-
-        result = {
-            'broadcaster_type': resp['broadcaster_type'],
-            'profile_img_url': resp['profile_image_url'],
-            'display_name': resp['display_name'],
-            'name': resp['login'],
-            'twitch_uid': resp['id'],
-        }
+    with requests.get(base_url, params={'login': given_name.lower()}, headers=bear_token) as req:
+        result = None
+        if req.ok and req.json()['data']:
+            resp = req.json()['data'][0]
+            result = {'name': resp['display_name'],
+                      'uid': resp['id'],
+                      'profile_img_url': resp['profile_image_url'],
+                      'broadcaster_type': resp['broadcaster_type']
+                      }
 
     return result
 
@@ -41,7 +35,7 @@ class TwitchClient:
     Follower = namedtuple('Follower', ['uid', 'to_from'], defaults=['from_id'])
     MIN_FOLLOWINGS = 2
 
-    def __init__(self, streamer_uid, n_followers=100, n_followings=100):
+    def __init__(self, streamer_uid, n_followers=100, n_followings=100, num_suggestions=10):
         self.auth = Auth()
         self.bear_token = self.auth.bear_token
         self.sess = requests.Session()
@@ -52,6 +46,7 @@ class TwitchClient:
         self.n_followers = n_followers
         if self.n_followers is None:
             self.n_followers = self.get_total_follows_count(streamer_uid)
+        self.num_suggestions = num_suggestions
 
 
     def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> list:
@@ -154,7 +149,7 @@ class TwitchClient:
         return self.sess.get(base_url, params=query_params, headers=self.bear_token).json()['total']
 
 
-    def get_similar_streams(self, n_best=10) -> dict:
+    def get_similar_streams(self) -> dict:
         """
         This function handles the "magic" behind retrieving similar streams recommendations.  A list of candidates is
         created by eliminating candidates below a minimum threshold of follower overlap then further reduced by
@@ -162,7 +157,6 @@ class TwitchClient:
         before sorting in descending order of similarity.  Profile images are also fetched for the final 'result_size"
         list of best candidates.
 
-        :param n_best: The desired amount of n_best similar streams.
         :return: A dictionary formatted as {'1': {best candidate details}, '2': {second best candidate details}, ...}
         which provides the final json response for the frontend.
         """
@@ -182,6 +176,7 @@ class TwitchClient:
             union_total_followers = streamer_followers_count + self.get_total_follows_count(candidate_id)
             trimmed_candidates[candidate_id] = intersection_total_followers / union_total_followers
 
+        n_best = self.num_suggestions
         if n_best > len(trimmed_candidates):
             n_best = len(trimmed_candidates)
         # Rank Candidates, retaining only 'n_best' final candidates
