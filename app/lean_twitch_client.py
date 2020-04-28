@@ -154,7 +154,7 @@ class TwitchClient:
         return self.sess.get(base_url, params=query_params, headers=self.bear_token).json()['total']
 
 
-    def get_similar_streams(self, result_size=10) -> dict:
+    def get_similar_streams(self, n_best=10) -> dict:
         """
         This function handles the "magic" behind retrieving similar streams recommendations.  A list of candidates is
         created by eliminating candidates below a minimum threshold of follower overlap then further reduced by
@@ -162,7 +162,7 @@ class TwitchClient:
         before sorting in descending order of similarity.  Profile images are also fetched for the final 'result_size"
         list of best candidates.
 
-        :param result_size: The desired amount of similar streams.
+        :param n_best: The desired amount of n_best similar streams.
         :return: A dictionary formatted as {'1': {best candidate details}, '2': {second best candidate details}, ...}
         which provides the final json response for the frontend.
         """
@@ -182,15 +182,15 @@ class TwitchClient:
             union_total_followers = streamer_followers_count + self.get_total_follows_count(candidate_id)
             trimmed_candidates[candidate_id] = intersection_total_followers / union_total_followers
 
-        if result_size > len(trimmed_candidates):
-            result_size = len(trimmed_candidates)
-        # Rank Candidates, retaining only 'result_size' final candidates
+        if n_best > len(trimmed_candidates):
+            n_best = len(trimmed_candidates)
+        # Rank Candidates, retaining only 'n_best' final candidates
         ranked_candidates = sorted(trimmed_candidates.items(),
-                                   key=lambda similarity: similarity[1], reverse=True)[:result_size]
+                                   key=lambda similarity: similarity[1], reverse=True)[:n_best]
         ranked_prof_img_urls = self.get_prof_img_url([candidate[0] for candidate in ranked_candidates])
 
         final_candidates = {}
-        for rank, candidate in enumerate(ranked_candidates[:result_size]):
+        for rank, candidate in enumerate(ranked_candidates[:n_best]):
             uid, sim_score = candidate
             live_candidates[uid]['sim_score'] = sim_score
             live_candidates[uid]['profile_image_url'] = ranked_prof_img_urls[uid]
