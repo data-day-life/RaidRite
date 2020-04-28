@@ -11,12 +11,15 @@ module_logger = logging.getLogger(__name__+'.py')
 
 
 def get_userinfo(given_name: str, bear_token=None) -> dict:
+    """ Fetches userinfo (e.g., a uid ) for a given username.
+    :return: A dictionary containing information about the given username or None if given name was not found.
+    """
     if not bear_token:
         bear_token = Auth().bear_token
 
     base_url = 'https://api.twitch.tv/helix/users'
+    result = None
     with requests.get(base_url, params={'login': given_name.lower()}, headers=bear_token) as req:
-        result = None
         if req.ok and req.json()['data']:
             resp = req.json()['data'][0]
             result = {'name': resp['display_name'],
@@ -24,6 +27,8 @@ def get_userinfo(given_name: str, bear_token=None) -> dict:
                       'profile_img_url': resp['profile_image_url'],
                       'broadcaster_type': resp['broadcaster_type']
                       }
+    if not result:
+        raise ValueError('Given username was not found on Twitch.')
 
     return result
 
@@ -36,18 +41,18 @@ class TwitchClient:
     MIN_FOLLOWINGS = 2
 
     def __init__(self, streamer_uid, n_followers=100, n_followings=100, num_suggestions=10):
-        self.auth = Auth()
-        self.bear_token = self.auth.bear_token
-        self.sess = requests.Session()
-        self.streamer = self.Streamer(streamer_uid, 'to_id')
-        self.followers_list = None
-        self.followings_count = None
-        self.n_followings = n_followings
-        self.n_followers = n_followers
-        if self.n_followers is None:
-            self.n_followers = self.get_total_follows_count(streamer_uid)
-        self.num_suggestions = num_suggestions
-
+        if streamer_uid and isinstance(streamer_uid, str):
+            self.auth = Auth()
+            self.bear_token = self.auth.bear_token
+            self.sess = requests.Session()
+            self.streamer = self.Streamer(streamer_uid, 'to_id')
+            self.followers_list = None
+            self.followings_count = None
+            self.n_followings = n_followings
+            self.n_followers = n_followers if n_followers else self.get_total_follows_count(streamer_uid)
+            self.num_suggestions = num_suggestions
+        else:
+            raise ValueError('Supplied streamer_uid was invalid.  Supplied value must be a string.')
 
     def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> list:
         """

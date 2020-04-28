@@ -13,14 +13,11 @@ def main():
     n_followings = 100
     start_time = perf_counter()
 
-    streamer_uid = get_userinfo('sfdgsdfg4re')
-
-
-    print('foo')
-
-    #streamer_uid = get_userinfo('ryrythebritishguy')['uid']
+    #streamer_uid = get_userinfo('adfaadsfasfd')
+    streamer_uid = get_userinfo('ryrythebritishguy')['uid']
+    tc = TwitchClient(streamer_uid)
     #streamer_uid = get_userinfo('stroopc')['uid']
-    tc = TwitchClient(streamer_uid, n_followers, n_followings)
+    #tc = TwitchClient(streamer_uid, n_followers, n_followings)
 
     # Check: get followers for streamer
     #followers = tc.get_streamer_followers()
