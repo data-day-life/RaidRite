@@ -15,13 +15,13 @@ def index():
 
 @app.route('/user/<username>')
 def suggestions(username):
-    suggestions = None
+    suggested_raids = None
     try:
         userinfo = get_userinfo(username)
         if userinfo and 'uid' in userinfo:
-            suggestions = TwitchClient.get_similar_streams(userinfo['uid'])
+            suggested_raids = TwitchClient(userinfo['uid'], num_suggestions=10).get_similar_streams()
 
     except ValueError:
         pass
 
-    return suggestions
+    return suggested_raids
