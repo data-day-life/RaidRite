@@ -2,12 +2,12 @@
 var menu_toggled = false;
 
 var client_id = "va97w97mn1qzq0nlrjavlifr92lstz"; //Twitch-API Client ID
-
+//https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-150x150.png
 var result_template = 
 '<a class="result_card" href="https://www.twitch.tv/{NAME}">\
 <img src="{THUMBNAIL}">\
 <div class="gradient"></div>\
-<img class="avatar" src="https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-150x150.png">\
+<img class="avatar" src="{AVATAR}">\
 <p class="stream_username">{NAME}</p>\
 <p class="stream_title">{TITLE}</p>\
 <p class="stream_viewers">•{VIEWERS}</p>\
@@ -64,21 +64,26 @@ function updateNav(){ //Updates Navbar and currently displayed content based on 
 
 const options = {
 
-    responseType: 'json',
-    headers: {'Client-ID': client_id}
+    responseType: 'json'//,
+    //headers: {'Client-ID': client_id}
 
 };
 
-function getID(username){ //Translate a given username into a twitch ID.
+function getStreams(username){ //Translate a given username into a twitch ID.
 
-    axios.get('https://api.twitch.tv/helix/users?login=' + encodeURI(username), options).then(response => {
+    console.log("Making call to backend");
 
-        if (response.data.data.length > 0){
+    axios.get('/user/' + encodeURI(username), options).then(response => {
+        data = Object.values(response.data);
+        console.log(data);
+        console.log(response);
+        //console.log(response.type);
+        if (data.length > 0){
             
-            //console.log(response.data.data[0].id);
-            getFollows(response.data.data[0].id);
-            console.log(response.data.data);
+            console.log("continuing");
             
+            renderStreams(data.slice(0,5));
+
         }else{
 
             console.log("INVALID USERNAME");
@@ -88,40 +93,13 @@ function getID(username){ //Translate a given username into a twitch ID.
 
 }
 
-function getFollows(id){ //Based on a user's twitch ID, generate list of followed users in the form of url search queries.
-
-    axios.get('https://api.twitch.tv/helix/users/follows?first=100&from_id=' + id, options).then(response => {
-
-        let url_append = ""; //Will be appended to the following get request in getStreams().
-
-        response.data.data.map( function (value) {
-
-            url_append += "&user_id=" + value.to_id; //Generate URL query parameters, in this case a list of users.
-
-        });
-
-        getStreams(url_append);
-
-    });
-}
-
-function getStreams(url_append){ //Get list of live streams based on provided list of users from previous function.
-
-    axios.get('https://api.twitch.tv/helix/streams?first=5' + url_append, options).then(response =>{
-
-        renderStreams(response.data.data.slice(0,5));
-
-    })
-
-}
-
 function renderStreams(data){ //Generates html for displaying search results.
 
     let generatedHTML = '<div class="empty"></div>';
 
     data.map((stream, i) => {
 
-        generatedHTML += result_template.replace("{NAME}", stream.user_name).replace("{NAME}", stream.user_name).replace("{TITLE}", stream.title).replace("{VIEWERS}", stream.viewer_count.toLocaleString()).replace("{THUMBNAIL}", stream.thumbnail_url.replace("{width}x{height}", "300x168")).replace("{INDEX}", i + 1);
+        generatedHTML += result_template.replace("{AVATAR}", stream.profile_image_url).replace("{NAME}", stream.name).replace("{NAME}", stream.name).replace("{TITLE}", stream.stream_title).replace("{VIEWERS}", stream.viewer_count.toLocaleString()).replace("{THUMBNAIL}", stream.thumbnail_url.replace("{width}x{height}", "300x168")).replace("{INDEX}", i + 1);
 
     })
 
@@ -156,7 +134,8 @@ function init(){
         midsearch.value = searchParams.get("id");
         topsearch.value = searchParams.get("id");
         document.getElementById("nav_results").innerHTML = searchParams.get("id").toUpperCase();
-        getID(searchParams.get("id"));
+        console.log("search params detected");
+        getStreams(searchParams.get("id"));
 
     }
     
