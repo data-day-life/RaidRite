@@ -1,4 +1,6 @@
 
+var menu_toggled = false;
+
 var client_id = "va97w97mn1qzq0nlrjavlifr92lstz"; //Twitch-API Client ID
 
 var result_template = 
@@ -14,6 +16,8 @@ var result_template =
 
 
 function updateNav(){ //Updates Navbar and currently displayed content based on URL hash path.
+
+    menu_toggled ? toggleMenu() : {}
 
     if(location.hash === ""){location.hash = "#Home"};
 
@@ -59,11 +63,13 @@ function updateNav(){ //Updates Navbar and currently displayed content based on 
 
 
 const options = {
+
     responseType: 'json',
     headers: {'Client-ID': client_id}
+
 };
 
-function getID(username){
+function getID(username){ //Translate a given username into a twitch ID.
 
     axios.get('https://api.twitch.tv/helix/users?login=' + encodeURI(username), options).then(response => {
 
@@ -82,58 +88,51 @@ function getID(username){
 
 }
 
-function getFollows(id){
-
+function getFollows(id){ //Based on a user's twitch ID, generate list of followed users in the form of url search queries.
 
     axios.get('https://api.twitch.tv/helix/users/follows?first=100&from_id=' + id, options).then(response => {
 
-        let add = "";
+        let url_append = ""; //Will be appended to the following get request in getStreams().
 
         response.data.data.map( function (value) {
 
-            add += "&user_id=" + value.to_id; //Generate URL query parameters, in this case a list of users.
+            url_append += "&user_id=" + value.to_id; //Generate URL query parameters, in this case a list of users.
 
         });
 
-        getStreams(add);
+        getStreams(url_append);
 
     });
 }
 
-function getStreams(add){
+function getStreams(url_append){ //Get list of live streams based on provided list of users from previous function.
 
-    axios.get('https://api.twitch.tv/helix/streams?first=5' + add, options).then(response =>{
+    axios.get('https://api.twitch.tv/helix/streams?first=5' + url_append, options).then(response =>{
 
-
-
-        console.log(response.data);
         renderStreams(response.data.data.slice(0,5));
-
 
     })
 
 }
 
-function renderStreams(data){
+function renderStreams(data){ //Generates html for displaying search results.
+
     let generatedHTML = '<div class="empty"></div>';
 
     data.map((stream, i) => {
 
         generatedHTML += result_template.replace("{NAME}", stream.user_name).replace("{NAME}", stream.user_name).replace("{TITLE}", stream.title).replace("{VIEWERS}", stream.viewer_count.toLocaleString()).replace("{THUMBNAIL}", stream.thumbnail_url.replace("{width}x{height}", "300x168")).replace("{INDEX}", i + 1);
 
-        
-
     })
 
     document.getElementById("content_results").innerHTML += generatedHTML + '<div class="empty"></div>';
+
 }
 
 
 
 function init(){
-    console.log(options)
-    
-    
+
     //Update both search bars when value is changed. Needs to be optimized/rewritten.
     let topsearch = document.getElementById("topsearch");
     let midsearch = document.getElementById("midsearch");
@@ -145,26 +144,37 @@ function init(){
     document.getElementsByClassName("searchbar_wrapper")[0].addEventListener("submit", (event)=>{event.preventDefault(); search(event)});
     document.getElementsByClassName("searchbar_wrapper")[1].addEventListener("submit", (event)=>{event.preventDefault(); search(event)});
 
+    //Handle mobile view menu button.
+    document.getElementsByClassName("menu_button")[0].addEventListener("click", ()=>{toggleMenu()});
+
 
     //Check if url already contains username to search, whether from a saved bookmark or from submitting searchbar form.
     searchParams = new URLSearchParams(location.search);
 
-    if(searchParams.has("id")){
+    if(searchParams.has("id")){ //If there is a search query, update elements and perform get request for needed information.
 
         midsearch.value = searchParams.get("id");
         topsearch.value = searchParams.get("id");
         document.getElementById("nav_results").innerHTML = searchParams.get("id").toUpperCase();
         getID(searchParams.get("id"));
+
     }
     
 }
 
+function toggleMenu(){
+
+    menu_toggled = !menu_toggled;
+    document.getElementById("nav_links").className = menu_toggled ? "navlinks menu_active" : "navlinks";
+
+}
+
 function search(event){
+
     location.hash = "#Results"
     location.search = "?id=" + document.getElementById("topsearch").value;
 
 }
-
 
 window.addEventListener("load", () => {updateNav(); init()});
 window.addEventListener("hashchange",() => updateNav());
