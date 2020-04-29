@@ -1,7 +1,0 @@
-# Since github ignores empty directories, I added this so that the logs directory itself will be committed to github
-# (but won't include any generated log files).  This is necesary to prevent the 'logger' module from breaking program
-# execution because the logs directory would not exist otherwise.
-
-# Adding the logs directory to this project's .gitignore (not *this* gitignore) avoids committing any logs generated
-# during development and avoids the need to "git merge" any generated logs with commits from different contributors of
-# this repo.

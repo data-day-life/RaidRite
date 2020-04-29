@@ -1,6 +1,6 @@
 /app/settings.py
-/misc
-/logs/*
+/misc/
+/logs/
 .idea/
 /venv/
 *.pyc
