@@ -3,3 +3,5 @@
 !/logs/.gitignore
 .idea/
 /venv/
+*.pyc
+*.pyc
