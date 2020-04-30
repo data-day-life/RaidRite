@@ -3,19 +3,22 @@ from app.controllers import blueprints
 from flask import render_template
 from app.twitch_client import TwitchClient, get_userinfo
 
+
 app = Flask(__name__, template_folder='../templates')
 
 for blueprint in blueprints:
     app.register_blueprint(blueprint)
+
 
 @app.route('/')
 @app.route('/index')
 def index():
     return render_template('index.html')
 
+
 @app.route('/user/<username>')
 def suggestions(username):
-    suggested_raids = None
+    suggested_raids = {}
     try:
         userinfo = get_userinfo(username)
         if userinfo and 'uid' in userinfo:
