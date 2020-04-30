@@ -217,7 +217,11 @@ class TwitchClient:
 
         # Fetch live streams for first req_batch_sz candidate streams
         resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
-        user_data = resp['data']
+        try:
+            user_data = resp['data']
+        except KeyError:
+            print(f'No data for {streamer_uid_list}')
+            return {}
 
         if len(streamer_uid_list) > req_batch_sz:
             # Collect all remaining live streams
