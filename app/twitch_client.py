@@ -27,8 +27,6 @@ def get_userinfo(given_name: str, bear_token=None) -> dict:
                       'profile_img_url': resp['profile_image_url'],
                       'broadcaster_type': resp['broadcaster_type']
                       }
-    if not result:
-        raise ValueError('Given username was not found on Twitch.')
 
     return result
 
@@ -52,7 +50,8 @@ class TwitchClient:
             self.n_followers = n_followers if n_followers else self.get_total_follows_count(streamer_uid)
             self.num_suggestions = num_suggestions
         else:
-            raise ValueError('Supplied streamer_uid was invalid.  Supplied value must be a string.')
+            print('Streamer id supplied to TwitchClient() was invalid; probably not found on Twitch')
+
 
     def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> list:
         """
@@ -79,9 +78,10 @@ class TwitchClient:
 
         # Skips followings collection for 'bot-like' users that follow too many accounts
         if to_or_from_id == 'from_id' and total_follows > self.n_followings:
+            print(f'Skipped {given_uid} -- too many followings detected ({total_follows} total)')
             return []
 
-        module_logger.info(f'Collecting {n_follows} follows for "{given_uid}"')
+        module_logger.info(f'Collecting {total_follows} follows for "{given_uid}"')
         # Modify number of followers to be collected by given parameter if necessary
         if n_follows is not None:
             if n_follows < total_follows:
@@ -169,11 +169,22 @@ class TwitchClient:
         :return: A dictionary formatted as {'1': {best candidate details}, '2': {second best candidate details}, ...}
         which provides the final json response for the frontend.
         """
+        start_time = perf_counter()
+        if not self.streamer:
+            print('No results fetched; streamer name was invalid or not found on Twitch.')
+            return {}
+
         if self.followings_count is None:
             self.get_followers_followings()
 
         trimmed_candidates = {uid: count for uid, count in self.followings_count.items()
                               if count >= self.MIN_FOLLOWINGS}
+
+        # Check if any candidates exist before proceeding
+        if not trimmed_candidates:
+            print('No candidate streams available; returned "{}"')
+            return {}
+
         # Remove *this* streamer from list of candidates
         trimmed_candidates.pop(self.streamer.uid, None)
         live_candidates = self.get_live_streams(list(trimmed_candidates.keys()))
@@ -200,6 +211,7 @@ class TwitchClient:
             live_candidates[uid]['profile_image_url'] = ranked_prof_img_urls[uid]
             final_candidates[rank+1] = live_candidates[uid]
 
+        print(f'Round trip time to collect suggestions: {perf_counter() - start_time}')
         return final_candidates
 
 
@@ -220,7 +232,7 @@ class TwitchClient:
         try:
             user_data = resp['data']
         except KeyError:
-            print(f'No data for {streamer_uid_list}')
+            print(f'Unable to collect profile images.  No data for {streamer_uid_list}')
             return {}
 
         if len(streamer_uid_list) > req_batch_sz:
@@ -249,7 +261,11 @@ class TwitchClient:
 
         # Fetch live streams for first req_batch_sz candidate streams
         resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
-        live_list = resp['data']
+        try:
+            live_list = resp['data']
+        except KeyError:
+            print(f'Unable to collect live stream info.  No data for {streamer_uid_list}')
+            return {}
 
         # Collect all remaining live streams
         if len(streamer_uid_list) > req_batch_sz:
