@@ -40,7 +40,7 @@ class TwitchClient:
     Follower = namedtuple('Follower', ['uid', 'to_from'], defaults=['from_id'])
     MIN_FOLLOWINGS = 2
 
-    def __init__(self, streamer_uid, n_followers=100, n_followings=100, num_suggestions=10):
+    def __init__(self, streamer_uid, n_followers=100, n_followings=50, num_suggestions=10):
         if streamer_uid and isinstance(streamer_uid, str):
             self.auth = Auth()
             self.bear_token = self.auth.bear_token
@@ -77,11 +77,15 @@ class TwitchClient:
         result = resp['data']
         total_follows = resp['total']
 
+        # Skips followings collection for 'bot-like' users that follow too many accounts
+        if to_or_from_id == 'from_id' and total_follows > self.n_followings:
+            return []
+
+        module_logger.info(f'Collecting {n_follows} follows for "{given_uid}"')
         # Modify number of followers to be collected by given parameter if necessary
         if n_follows is not None:
             if n_follows < total_follows:
                 total_follows = n_follows
-        module_logger.info(f'Collecting {total_follows} follows for "{given_uid}"')
 
         for next_batch in range(req_batch_sz, total_follows, req_batch_sz):
             resp = self.sess.get(base_url, params=q_params, headers=self.bear_token).json()
