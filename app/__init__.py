@@ -22,6 +22,6 @@ def suggestions(username):
             suggested_raids = TwitchClient(userinfo['uid'], num_suggestions=10).get_similar_streams()
 
     except ValueError:
-        pass
+        print('Supplied user name was either invalid or not found on Twitch.')
 
     return suggested_raids

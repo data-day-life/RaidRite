@@ -14,7 +14,7 @@ def main():
     start_time = perf_counter()
 
     #streamer_uid = get_userinfo('adfaadsfasfd')
-    streamer_uid = get_userinfo('ryrythebritishguy')['uid']
+    streamer_uid = get_userinfo('data_day_life')['uid']
     tc = TwitchClient(streamer_uid)
     #streamer_uid = get_userinfo('stroopc')['uid']
     #tc = TwitchClient(streamer_uid, n_followers, n_followings)
