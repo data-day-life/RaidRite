@@ -50,6 +50,7 @@ class TwitchClient:
             self.n_followers = n_followers if n_followers else self.get_total_follows_count(streamer_uid)
             self.num_suggestions = num_suggestions
         else:
+            self.streamer = None
             print('Streamer id supplied to TwitchClient() was invalid; probably not found on Twitch')
 
 
