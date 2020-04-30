@@ -22,6 +22,7 @@ def suggestions(username):
     try:
         userinfo = get_userinfo(username)
         if userinfo and 'uid' in userinfo:
+            print(f'Collecting suggestions for {userinfo["name"]}')
             suggested_raids = TwitchClient(userinfo['uid'], num_suggestions=10).get_similar_streams()
 
     except ValueError:

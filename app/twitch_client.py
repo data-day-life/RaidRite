@@ -50,6 +50,7 @@ class TwitchClient:
             self.n_followings = n_followings
             self.n_followers = n_followers if n_followers else self.get_total_follows_count(streamer_uid)
             self.num_suggestions = num_suggestions
+            self.num_skipped = 0
         else:
             raise ValueError('Streamer id supplied to TwitchClient() was invalid; probably not found on Twitch')
 
@@ -79,7 +80,8 @@ class TwitchClient:
 
         # Skips followings collection for 'bot-like' users that follow too many accounts
         if to_or_from_id == 'from_id' and total_follows > self.n_followings:
-            print(f'Skipped {given_uid} -- too many followings detected ({total_follows} total)')
+            # print(f'Skipped {given_uid} -- too many followings detected ({total_follows} total)')
+            self.num_skipped += 1
             return []
 
         module_logger.info(f'Collecting {total_follows} follows for "{given_uid}"')
@@ -212,7 +214,9 @@ class TwitchClient:
             live_candidates[uid]['profile_image_url'] = ranked_prof_img_urls[uid]
             final_candidates[rank+1] = live_candidates[uid]
 
-        print(f'Round trip time to collect suggestions: {perf_counter() - start_time}')
+        print(f'Round trip time to collect suggestions: {round(perf_counter() - start_time, 3)} sec')
+        print(f'Num Skipped Followers: {self.num_skipped}')
+
         return final_candidates
 
 
