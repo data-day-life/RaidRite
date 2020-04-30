@@ -27,7 +27,8 @@ def get_userinfo(given_name: str, bear_token=None) -> dict:
                       'profile_img_url': resp['profile_image_url'],
                       'broadcaster_type': resp['broadcaster_type']
                       }
-
+        else:
+            raise ValueError('Supplied User name was not found on Twitch.')
     return result
 
 
@@ -50,8 +51,7 @@ class TwitchClient:
             self.n_followers = n_followers if n_followers else self.get_total_follows_count(streamer_uid)
             self.num_suggestions = num_suggestions
         else:
-            self.streamer = None
-            print('Streamer id supplied to TwitchClient() was invalid; probably not found on Twitch')
+            raise ValueError('Streamer id supplied to TwitchClient() was invalid; probably not found on Twitch')
 
 
     def get_n_follows(self, given_uid: str, to_or_from_id: str, n_follows=None) -> list:
