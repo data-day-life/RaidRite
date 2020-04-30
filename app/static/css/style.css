@@ -3,7 +3,7 @@ html{
     user-select: none;
 }
 body{
-    background: url(../static/media/Logo_Vector.svg?sanitize=true) bottom left;
+    background: url(../media/Logo_Vector.svg?sanitize=true) bottom left;
     background-repeat: no-repeat;
     background-size: auto 80%;
     margin: 0px;
