@@ -2,8 +2,16 @@ import requests
 from collections import namedtuple
 from datetime import datetime, timedelta
 from dateutil import parser
-from app import settings
 import pytz
+
+try:
+    from app import settings
+    TWITCH_CLIENT_ID = settings.TWITCH_CLIENT_ID
+    TWITCH_CLIENT_SECRET = settings.TWITCH_CLIENT_SECRET
+except ImportError:
+    import os
+    TWITCH_CLIENT_ID = os.environ.get('TWITCH_CLIENT_ID')
+    TWITCH_CLIENT_SECRET = os.environ.get('TWITCH_CLIENT_SECRET')
 
 
 class Auth:
@@ -12,8 +20,8 @@ class Auth:
 
     def __init__(self):
         # Initialize class attributes
-        self.client_id = settings.TWITCH_CLIENT_ID
-        self._client_secret = settings.TWITCH_CLIENT_SECRET
+        self.client_id = TWITCH_CLIENT_ID
+        self._client_secret = TWITCH_CLIENT_SECRET
         self._auth_token = None
         self._bear_token = None
         self.fetched_at = None
