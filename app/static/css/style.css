@@ -3,7 +3,7 @@ html{
     user-select: none;
 }
 body{
-    background: url(../media/Logo_Vector.svg?sanitize=true) bottom left;
+    background: url(static/media/Logo_Vector.svg?sanitize=true) bottom left;
     background-repeat: no-repeat;
     background-size: auto 80%;
     margin: 0px;
@@ -169,7 +169,7 @@ input:focus, textarea:focus, select:focus{
     min-height: 43px;
     width: 160px;
     height: 43px;
-    background-image: url(../media/logo_nav_full.png);
+    background-image: url(static/media/logo_nav_full.png);
     background-repeat: no-repeat;
     cursor: pointer;
 }
@@ -214,7 +214,7 @@ input:focus, textarea:focus, select:focus{
         min-height: 43px;
         width: 73px;
         height: 43px;
-        background-image: url(../media/logo_nav_short.png);
+        background-image: url(static/media/logo_nav_short.png);
         background-repeat: no-repeat;
     }
     .navbar{
@@ -239,7 +239,7 @@ input:focus, textarea:focus, select:focus{
         min-height: 43px;
         width: 73px;
         height: 43px;
-        background-image: url(../media/logo_nav_short.png);
+        background-image: url(static/media/logo_nav_short.png);
         background-repeat: no-repeat;
     }
 
@@ -336,7 +336,7 @@ input:focus, textarea:focus, select:focus{
  #content_about, #content_feedback{
     height: 70%;
     width: 100%;
-    background-image: url(../media/construction.png);
+    background-image: url(static/media/construction.png);
     background-repeat: no-repeat;
     background-position: center;
     background-size: min(100%, 600px);
