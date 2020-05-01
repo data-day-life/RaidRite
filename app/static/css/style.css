@@ -176,7 +176,10 @@ input:focus, textarea:focus, select:focus{
 
 
 #content_results{
-    grid-template-columns: auto 300px 300px 300px 300px 300px auto;
+    margin-left: auto;
+    margin-right: auto;
+    width: calc(1500px + 6%);
+    grid-template-columns:300px 300px 300px 300px 300px;
     grid-template-rows: auto;
     gap: 40px 2%;
     margin-top: 40px;
@@ -184,8 +187,8 @@ input:focus, textarea:focus, select:focus{
 
 #suggestheader{
 
-    grid-column-start: 2;
-    grid-column-end: span 5;
+    grid-column-start: 1;
+    grid-column-end: span 3;
     font-family: Roboto, sans-serif;
     font-size: 25px;
     font-weight: 300;
@@ -195,9 +198,9 @@ input:focus, textarea:focus, select:focus{
 }
 
 #split{
-        grid-column-start: 2;
-        grid-column-end: span 5;
-        grid-row-start: 3;
+        grid-column-start: 1;
+        grid-column-end: span 3;
+        grid-row-start: 5;
         font-family: Roboto, sans-serif;
         font-size: 25px;
         font-weight: 300;
@@ -454,4 +457,8 @@ input:focus, textarea:focus, select:focus{
     white-space: nowrap; 
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.uptime{
+    color:rgb(226, 226, 226);
 }

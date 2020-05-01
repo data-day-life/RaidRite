@@ -10,7 +10,7 @@ var result_template =
 <img class="avatar" src="{AVATAR}">\
 <p class="stream_username">{NAME}</p>\
 <p class="stream_title">{TITLE}</p>\
-<p class="stream_viewers">•{VIEWERS}</p>\
+<p class="stream_viewers">🕒<span class="uptime">{TIME}</span> 👁️{VIEWERS}</p>\
 <p class="result_label">{INDEX}</p>\
 </a>';
 
@@ -106,7 +106,7 @@ function getStreams(username){ //Translate a given username into a twitch ID.
             
             console.log("continuing");
             
-            renderStreams(data.slice(0,5));
+            renderStreams(data.slice(0,10));
 
         }else{
 
@@ -123,7 +123,7 @@ function renderStreams(data){ //Generates html for displaying search results.
 
     data.map((stream, i) => {
 
-        generatedHTML += result_template.replace("{AVATAR}", stream.profile_image_url).replace("{NAME}", stream.name).replace("{NAME}", stream.name).replace("{TITLE}", stream.stream_title).replace("{VIEWERS}", stream.viewer_count.toLocaleString()).replace("{THUMBNAIL}", stream.thumbnail_url.replace("{width}x{height}", "300x168")).replace("{INDEX}", i + 1);
+        generatedHTML += result_template.replace("{TIME}", stream.stream_duration).replace("{AVATAR}", stream.profile_image_url).replace("{NAME}", stream.name).replace("{NAME}", stream.name).replace("{TITLE}", stream.stream_title).replace("{VIEWERS}", stream.viewer_count.toLocaleString()).replace("{THUMBNAIL}", stream.thumbnail_url.replace("{width}x{height}", "300x168")).replace("{INDEX}", i + 1);
 
     })
 
