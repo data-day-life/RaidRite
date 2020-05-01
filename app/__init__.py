@@ -29,3 +29,14 @@ def suggestions(username):
         print('Supplied user name was either invalid or not found on Twitch.')
 
     return suggested_raids
+
+@app.route('/validate/<username>')
+def validate(username):
+    try:
+        userinfo = get_userinfo(username)
+
+        if userinfo and 'uid' in userinfo:
+            return userinfo
+
+    except ValueError:
+        return {}
