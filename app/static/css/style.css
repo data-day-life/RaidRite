@@ -333,7 +333,11 @@ input:focus, textarea:focus, select:focus{
 
 
 
- #content_about, #content_feedback{
+ #content_about{
+    color: white;
+ }
+
+ #content_feedback{
     height: 70%;
     width: 100%;
     background-image: url(../media/construction.png);
