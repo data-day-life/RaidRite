@@ -64,10 +64,34 @@ function updateNav(){ //Updates Navbar and currently displayed content based on 
 
 const options = {
 
-    responseType: 'json'//,
-    //headers: {'Client-ID': client_id}
+    responseType: 'json'
 
 };
+
+function validate(username){ //validate username with backend
+
+    console.log("Making validation call to backend");
+
+    axios.get('/validate/' + encodeURI(username), options).then(response => {
+        data = Object.values(response.data);
+        console.log(response);
+
+        if (data.length > 0){
+
+            location.hash = "#Results";
+            location.search = "?id=" + document.getElementById("topsearch").value;
+            
+        }else{
+
+            console.log("INVALID USERNAME");
+            document.getElementById("midsearch").className = "home_searchbar invalid";
+            document.getElementById("topsearch").className = "searchbar invalid";
+        }
+
+    });
+
+}
+
 
 function getStreams(username){ //Translate a given username into a twitch ID.
 
@@ -150,8 +174,7 @@ function toggleMenu(){
 
 function search(event){
 
-    location.hash = "#Results"
-    location.search = "?id=" + document.getElementById("topsearch").value;
+    validate(document.getElementById("topsearch").value);
 
 }
 
