@@ -85,7 +85,7 @@ function validate(username){ //validate username with backend
 
             console.log("INVALID USERNAME");
             document.getElementById("midsearch").className = "home_searchbar invalid";
-            document.getElementById("topsearch").className = "home_searchbar invalid";
+            document.getElementById("topsearch").className = "searchbar invalid";
         }
 
     });
