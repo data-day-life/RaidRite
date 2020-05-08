@@ -10,18 +10,22 @@ logger = logging.getLogger()
 # This is just a demo; also useful for debugging.
 def main():
     n_followers = 100
-    n_followings = 100
+    n_followings = 50
     start_time = perf_counter()
 
-    #streamer_uid = get_userinfo('adfaadsfasfd')
-    streamer_uid = get_userinfo('data_day_life')['uid']
-    tc = TwitchClient(streamer_uid)
-    #streamer_uid = get_userinfo('stroopc')['uid']
-    #tc = TwitchClient(streamer_uid, n_followers, n_followings)
+    #foo = get_userinfo('adfasfesf')
+    print('')
+    # streamer_uid = get_userinfo('adfaadsfasfd')
+    # streamer_uid = get_userinfo('data_day_life')['uid']
+    streamer_uid = get_userinfo('stroopc')['uid']
+    #streamer_uid = get_userinfo('prod3x')['uid']      # has zero total followers
+    #streamer_uid = get_userinfo('moJohat')['uid']     # has nine total followers
+
+    tc = TwitchClient(streamer_uid, n_followers, n_followings)
 
     # Check: get followers for streamer
-    #followers = tc.get_streamer_followers()
-    #print(followers)
+    followers = tc.get_streamer_followers()
+    print(followers)
 
     # Check: get followers followings for streamer
     # followings_count = tc.get_followers_followings()
