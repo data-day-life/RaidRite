@@ -60,7 +60,7 @@ class Auth:
             self._auth_token = req.json()
             self._bear_token = {
                 'Authorization':  'Bearer ' + self._auth_token['access_token'],
-                'Client_ID':      self.client_id
+                'Client-ID':      self.client_id
                 }
         # Capturing & String-Formatting Token Lifetime Information
             self.fetched_at = parser.parse(req.headers['date']).strftime(self.twitch_time_fmt)
