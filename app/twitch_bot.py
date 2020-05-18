@@ -9,7 +9,7 @@ from time import perf_counter
 class Bot(commands.Bot):
 
     def __init__(self):
-        super().__init__(irc_token=TMI_TOKEN, client_id=TWITCH_CLIENT_ID, client_secret=TWITCH_CLIENT_SECRET,
+        super().__init__(irc_token=TMI_TOKEN, client_id=TWITCH_CLIENT_ID,
                         nick=BOT_NICK, prefix=BOT_PREFIX, initial_channels=CHANNELS )
 
     # Events don't need decorators when subclassed

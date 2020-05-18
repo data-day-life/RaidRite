@@ -3,6 +3,7 @@
 /logs/
 .idea/
 /venv/
+!/venv/Lib/site-packages/twitchio
 *.pyc
 .stylelintrc.json
 package-lock.json
