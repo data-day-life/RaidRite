@@ -12,7 +12,6 @@
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/css/style.css">
     <link rel="shortcut icon" href="static/media/favicon.ico" />
-
 </head>
 
 <body>
@@ -27,7 +26,7 @@
         </span>
 
         <form class="searchbar_wrapper">
-            <input id="topsearch" class="searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
+            <label for="topsearch"></label><input id="topsearch" class="searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
             <button type="submit">&#128270;</button>
         </form>
 
@@ -42,36 +41,46 @@
 
             <div class="home_search">
                 <form class="searchbar_wrapper">
-                    <input id="midsearch" class="home_searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
+                    <label for="midsearch"></label><input id="midsearch" class="home_searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
                     <button type="submit">&#128270;</button>
                 </form>
             </div>
         </div>
-    
+
+
         <div id="content_about" class="content_container">
-
-            <h1>About Us</h1>
-            <p>Are you interested in growing your Twitch channel?</p>
-            <li>In our site, we use Twitch follower networks as a baseline measure for similarity between channels</li>
-            <li><b>Then recommend the rite way to raid!</b></li>
-
-            <p>This site was made by a team of UNCC students for a capstone project</p>
-
+            <h1>About</h1>
+            <p>
+                Our recommendations are roughly equivalent to "People who like _____ also like _____".  Our results only
+                prioritize live streams, so you can search the same name at different times to receive different
+                recommendations.
+            </p>
+            <p></p>
+            <h3>For Streamers ...</h3>
+            <p>
+                Search for your own username to receive a list of live recommendations.  Results are ranked by
+                similarity.
+            </p>
+            <p></p>
+            <h3>For Viewers ...</h3>
+            <p>
+                Find new streamers by searching for other streamers that you like.
+                Search for a streamer that you like to retrieve a live list of similar streamers.
+            </p>
         </div>
+
 
         <div id="content_feedback" class="content_container">
-
         </div>
+
 
         <div id="content_results" class="content_container">
                 <div class="empty"></div>
-                <div class="results_header" id="suggestheader">Recommended Targets</div>
+                <div class="results_header" id="suggestheader">Recommendations...</div>
                 <div class="empty"></div>
                 <div class="results_header" id="split"></div>
-
         </div>
     </div>
 
 </body>
-
 </html>
