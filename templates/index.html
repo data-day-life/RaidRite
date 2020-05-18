@@ -1,13 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 	<title>RaidRite</title>
-<link rel="shortcut icon" href="http://example.com/favicon.ico" />
 	
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="static/js/javascript.js"></script>
@@ -15,13 +12,11 @@
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/css/style.css">
     <link rel="shortcut icon" href="static/media/favicon.ico" />
-
 </head>
 
 <body>
     <div class="navbar">
         <a class="logo" href="#Home"></a>
-        
 
         <span id="nav_links" class="navlinks">
             <a id="nav_home" class="navlink nav_active" href="#Home">HOME</a>
@@ -29,58 +24,63 @@
             <a id="nav_feedback" class="navlink" href="#Feedback">FEEDBACK</a>
             <a id="nav_results" class="navlink" href="#Results"></a>
         </span>
+
         <form class="searchbar_wrapper">
-            <input id="topsearch" class="searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
+            <label for="topsearch"></label><input id="topsearch" class="searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
             <button type="submit">&#128270;</button>
         </form>
-        <button class="menu_button"><img src="static/media/menu.png"></button>
+
+        <button class="menu_button"><img src="static/media/menu.png" alt="menu hamburger icon"></button>
     </div>
      
     <div id="pages" class="pages">
-
         <div id="content_home" class="content_container content_active">
-
             <div class="home_greeting">
                 Take the guesswork out of raiding.
             </div>
+
             <div class="home_search">
                 <form class="searchbar_wrapper">
-                    <input id="midsearch" class="home_searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
+                    <label for="midsearch"></label><input id="midsearch" class="home_searchbar" type="text" spellcheck="false" placeholder="Twitch ID">
                     <button type="submit">&#128270;</button>
                 </form>
             </div>
-
         </div>
-    
+
+
         <div id="content_about" class="content_container">
-
-            <h1>About Us</h1>
-            <p>Are you interested in growing your Twitch channel?</p>
-            <li>In our site, we use Twitch follower networks as a baseline measure for similarity between channels</li>
-            <li><b>Then recommend the rite way to raid!</b></li>
-
-            <p>This site was made by a team of UNCC students for a capstone project</p>
-
+            <h1>About</h1>
+            <p>
+                Our recommendations are roughly equivalent to "People who like _____ also like _____".  Our results only
+                prioritize live streams, so you can search the same name at different times to receive different
+                recommendations.
+            </p>
+            <p></p>
+            <h3>For Streamers ...</h3>
+            <p>
+                Search for your own username to receive a list of live recommendations.  Results are ranked by
+                similarity.
+            </p>
+            <p></p>
+            <h3>For Viewers ...</h3>
+            <p>
+                Find new streamers by searching for other streamers that you like.
+                Search for a streamer that you like to retrieve a live list of similar streamers.
+            </p>
         </div>
+
 
         <div id="content_feedback" class="content_container">
-           
-
         </div>
+
 
         <div id="content_results" class="content_container">
                 <div class="empty"></div>
-                <div class="results_header" id="suggestheader">Recommended Targets</div>
+                <div class="results_header" id="suggestheader">Recommendations...</div>
                 <div class="empty"></div>
                 <div class="results_header" id="split"></div>
-
         </div>
     </div>
-    
-
-
-
 
 </body>
-
 </html>

@@ -4,4 +4,6 @@
 .idea/
 /venv/
 *.pyc
-*.pyc
+.stylelintrc.json
+package-lock.json
+/node_modules/
