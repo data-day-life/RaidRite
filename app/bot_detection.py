@@ -67,7 +67,7 @@ class BotDetector:
         return flagged_bot_uids
 
 
-    async def remove_foll_bot_uids(self, foll_list: list, flagged_bot_uids: set) -> list:
+    async def remove_foll_bot_uids(self, foll_list: list, flagged_bot_uids: set = None) -> list:
         """
         Removes flagged bot uids from a follower list but retains the initial format of the follower list.
 
@@ -78,11 +78,14 @@ class BotDetector:
                 'followed_at': '2020-06-28T04:57:07Z'},  ...]
 
             flagged_bot_uids (set):
-                A set of flagged uids that are most likely bots.
+                A set of flagged uids that are most likely bots.  If no set is provided then it will be produced by
+                calling detect_follower_bot_uids()
 
         Returns:
             A sanitized follower list in the original foll_list format.
         """
+        if not flagged_bot_uids:
+            flagged_bot_uids = await self.detect_follower_bot_uids(foll_list)
         print(f' *** Removed {len(flagged_bot_uids)} follower bots from the list of {len(foll_list)} followers')
         self.num_removed += len(flagged_bot_uids)
         return [follower for follower in foll_list if follower.get('from_id') not in flagged_bot_uids]
