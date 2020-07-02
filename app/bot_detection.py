@@ -6,7 +6,7 @@ class BotDetector:
 
     def __init__(self):
         self.loop = asyncio.get_event_loop()
-        self.num_removed = 0
+        self.total_removed = 0
 
 
     @staticmethod
@@ -25,6 +25,7 @@ class BotDetector:
             followers.
         """
         return [parser.parse(follower.get('followed_at', None)) for follower in foll_list]
+
 
     async def detect_follower_bot_uids(self, foll_list: list) -> set:
         """
@@ -64,6 +65,7 @@ class BotDetector:
 
         # print(f'Detected {len(flagged_bot_uids)} follower bot(s) in follower list.')
         # print(f'Flagged (idx, uid): {[flagged for flagged in zip(flagged_idxs, flagged_bot_uids)]}')
+
         return flagged_bot_uids
 
 
@@ -86,8 +88,9 @@ class BotDetector:
         """
         if not flagged_bot_uids:
             flagged_bot_uids = await self.detect_follower_bot_uids(foll_list)
-        print(f' *** Removed {len(flagged_bot_uids)} follower bots from the list of {len(foll_list)} followers')
-        self.num_removed += len(flagged_bot_uids)
+        self.total_removed += len(flagged_bot_uids)
+        # print(f' *** Removed {len(flagged_bot_uids)} follower bots from the list of {len(foll_list)} followers')
+
         return [follower for follower in foll_list if follower.get('from_id') not in flagged_bot_uids]
 
 
@@ -106,6 +109,7 @@ class BotDetector:
         """
         flagged_bot_uids = await self.detect_follower_bot_uids(foll_list)
         sanitized_uids = await self.remove_foll_bot_uids(foll_list, flagged_bot_uids)
+
         return [follower.get('from_id', None) for follower in sanitized_uids]
 
 
