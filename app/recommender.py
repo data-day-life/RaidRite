@@ -84,11 +84,7 @@ class Recommender:
         return results
 
 
-    # async def parse_follower_ids(self, follower_reply_data: list) -> list:
-    #     return [follower['from_id'] for follower in follower_reply_data]
-
-
-    async def produce_follower_samples(self):
+    async def produce_follower_samples(self, queue: asyncio.Queue = None, print_status: bool = False):
         """
         Utilizes twitch client to collect a list of follower_ids for valid streamer_id while removing follower bots.
 
@@ -98,26 +94,61 @@ class Recommender:
         if not self.streamer_id:
             await self.set_streamer()
 
+        async def put_queue(id_list):
+            [await queue.put(foll_id) for foll_id in id_list]
+
         follower_reply = await self.tc.get_full_n_followers(self.streamer_id, self.sample_sz)
         next_cursor = follower_reply.get('cursor', None)
         if not self.total_followers:
             self.total_followers = follower_reply.get('total', 0)
 
         bd = BotDetector()
-        all_sanitized_uids = await bd.santize_foll_list(follower_reply.get('data', None))
+        all_sanitized_uids = await bd.santize_foll_list(follower_reply.get('data'))
+
+        if queue:
+            await put_queue(all_sanitized_uids)
 
         while next_cursor and (len(all_sanitized_uids) < self.sample_sz):
             # print(f'Total sanitized uids: {len(all_sanitized_uids)}')
             params = [('after', next_cursor)]
             next_foll_reply = await self.tc.get_full_n_followers(self.streamer_id, self.sample_sz, params=params)
-            next_sanitized_uids = await bd.santize_foll_list(next_foll_reply.get('data', None))
+            next_sanitized_uids = await bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
-            next_cursor = next_foll_reply.get('cursor', None)
+            next_cursor = next_foll_reply.get('cursor')
 
-        # print(f'> Removed {bd.total_removed} potential follower bots total.')
-        # print(f'> Total sanitized uids: {len(all_sanitized_uids)}')
+            if queue:
+                await put_queue(next_sanitized_uids)
+
+        if print_status:
+            print(f'> Removed {bd.total_removed} potential follower bots total.')
+            print(f'> Total sanitized uids: {len(all_sanitized_uids)}')
+            print(f'> Total followers: {self.total_followers}')
 
         return all_sanitized_uids
+
+
+    async def consume_follower_samples(self, queue: asyncio.Queue, max_total_followings=150) -> None:
+        while True:
+            follower_id = await queue.get()
+            following_reply = await self.tc.get_full_n_followings(follower_id)
+            if following_reply.get('total') < max_total_followings:
+                foll_data = following_reply.get('data')
+                self.followings_counter.update([following.get('to_id') for following in foll_data])
+            else:
+                print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
+
+            queue.task_done()
+
+
+    async def run_queue(self, n_consumers: int = 10):
+        loop = asyncio.get_event_loop()
+        queue = asyncio.Queue(loop=loop)
+
+        consumers = [asyncio.create_task(self.consume_follower_samples(queue)) for _ in range(n_consumers)]
+        await self.produce_follower_samples(queue)
+        await queue.join()
+        for c in consumers:
+            c.cancel()
 
 
 
@@ -126,10 +157,17 @@ async def main():
     some_name = 'stroopc'
     rec = Recommender(some_name)
 
-    print(await rec.gen_suggestions())
-    print(f'Total Time: {round(perf_counter() - t, 3)} sec')
-    # print(await rec.produce_follower_samples())
+    # follower_ids = await rec.produce_follower_samples(print_status=True)
+    # print(f'Follower ID List:\n {follower_ids}')
 
+    await rec.run_queue()
+    print(rec.followings_counter)
+    print(f'Counter length: {len(rec.followings_counter)}')
+
+
+
+
+    print(f'* Total Time: {round(perf_counter() - t, 3)} sec')
     await rec.tc.close()
 
 
