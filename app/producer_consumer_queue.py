@@ -7,7 +7,6 @@ class ProdConsQueue:
         self.n_prods = n_prods
         self.n_cons = n_cons
         self.queue = asyncio.Queue()
-        self.items = items
 
     async def produce(self, items, q: asyncio.Queue) -> None:
         # Get followings
@@ -38,8 +37,8 @@ class ProdConsQueue:
         queue = asyncio.Queue()
 
         # Create producer and consumer pool and supply items
-        producers = [asyncio.create_task(self.produce(items, queue)) for n in range(n_prods)]
-        consumers = [asyncio.create_task(self.consume(queue)) for n in range(n_cons)]
+        producers = [asyncio.create_task(self.produce(items, queue)) for _ in range(n_prods)]
+        consumers = [asyncio.create_task(self.consume(queue)) for _ in range(n_cons)]
 
         # Begin production pool
         await asyncio.gather(*producers)
