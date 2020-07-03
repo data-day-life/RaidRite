@@ -27,12 +27,15 @@ class BotDetector:
         return [parser.parse(follower.get('followed_at', None)) for follower in foll_list]
 
 
-    async def detect_follower_bot_uids(self, foll_list: list) -> set:
+    async def detect_follower_bot_uids(self, foll_list: list, print_status: bool = False) -> set:
         """
         When given a follower list, this function flags uids that may be bots. Bots are detected by computing the time
         difference between a sequence of two followers.  Users that follow a streamer in rapid succession are flagged.
 
         Args:
+            print_status (bool):
+                Prints summary output of detected bots.
+
             foll_list (list):
                 A list of dictionaries in follower_reply['data'] from Twitch with format:
                 [{'from_id': '123', 'from_name': 'xyz', 'to_id': '456', 'to_name': 'abc',
@@ -63,8 +66,9 @@ class BotDetector:
                 flagged_bot_uids.add(foll_list[-1].get('from_id', None))
                 flagged_idxs.append(len(parsed_list)-1)
 
-        # print(f'Detected {len(flagged_bot_uids)} follower bot(s) in follower list.')
-        # print(f'Flagged (idx, uid): {[flagged for flagged in zip(flagged_idxs, flagged_bot_uids)]}')
+        if print_status:
+            print(f'Detected {len(flagged_bot_uids)} follower bot(s) in follower list.')
+            print(f'Flagged (idx, uid): {[flagged for flagged in zip(flagged_idxs, flagged_bot_uids)]}')
 
         return flagged_bot_uids
 
