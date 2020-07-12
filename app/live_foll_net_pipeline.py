@@ -5,8 +5,11 @@ from app.twitch_client_v2 import TwitchClient
 from app.bot_detection import BotDetector
 from app.streamer import Streamer
 
-# Final shape
-# TODO:  thought process here is to check 100 new live streams for occurence of 2 mutual followings and check finally
+# TODO: Final Result:
+#   1. Gets followers for streamer
+#   2. Gets followings of followers
+#   3. Gets live stream info for mutual followings
+#   thought process here is to check 100 new live streams for occurence of 2 mutual followings and check finally
 #  after collecting all followings
 
 class FollowNetPipeline:
