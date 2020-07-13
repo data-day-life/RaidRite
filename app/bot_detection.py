@@ -30,19 +30,16 @@ class BotDetector:
     async def detect_follower_bot_uids(self, foll_list: list, print_status: bool = False) -> set:
         """
         When given a follower list, this function flags uids that may be bots. Bots are detected by computing the time
-        difference between a sequence of two followers.  Users that follow a streamer in rapid succession are flagged.
+        difference between a sequence of two followers.  Users that follow a streamer_id in rapid succession are flagged.
 
         Args:
-            print_status (bool):
-                Prints summary output of detected bots.
-
             foll_list (list):
                 A list of dictionaries in follower_reply['data'] from Twitch with format:
                 [{'from_id': '123', 'from_name': 'xyz', 'to_id': '456', 'to_name': 'abc',
                 'followed_at': '2020-06-28T04:57:07Z'},  ...]
 
-        Todo:
-            * Modify method to accept time (in seconds) as an argument)
+            print_status (bool):
+                Prints summary output of detected bots.
 
         Returns:
             A set of flagged user id's as ('1234', '4567', ...)
