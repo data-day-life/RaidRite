@@ -18,13 +18,7 @@ class Streamer:
             raise AttributeError('Neither streamer_id name nor uid were provided')
 
 
-    async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None, print_status: bool = False):
-        tc = tc
-        await self.initialize(tc)
-        await self.produce_follower_samples(tc, q_out, print_status)
-
-
-    async def initialize(self, tc: TwitchClient):
+    async def __call__(self, tc: TwitchClient):
         if self.streamer_id:
             return
         if not self.name:
@@ -38,8 +32,8 @@ class Streamer:
 
     async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None, print_status: bool = False):
         """
-        For a valid streamer_id, collect a list of sanitized_follower_ids while removing follower bots.  Batches of sanitized
-        uids are placed into a given queue.
+        For a valid streamer_id, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
+        sanitized uids are placed into a given queue.
 
         Args:
             tc (TwitchClient):
@@ -97,7 +91,8 @@ async def main():
     t = perf_counter()
 
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
-    await streamer(tc, print_status=True)
+    await streamer(tc)
+    await streamer.produce_follower_samples(tc, print_status=True)
 
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
 
