@@ -4,27 +4,26 @@ from app.bot_detection import BotDetector
 from time import perf_counter
 
 
-
 class Streamer:
 
     def __init__(self, name=None, streamer_id=None, sample_sz=300):
         self.name = name
-        self.streamer_id = streamer_id
+        self.streamer_uid = streamer_id
         self.sample_sz = sample_sz
         self.total_followers = None
         self.sanitized_follower_ids = None
 
-        if self.streamer_id is None and self.name is None:
-            raise AttributeError('Neither streamer_id name nor uid were provided')
+        if self.streamer_uid is None and self.name is None:
+            raise AttributeError('Neither streamer_uid name nor uid were provided')
 
 
     async def __call__(self, tc: TwitchClient):
-        if self.streamer_id:
+        if self.streamer_uid:
             return
         if not self.name:
             raise AttributeError('Streamer name not set; unable to get_streamer_id()')
         try:
-            self.streamer_id = await tc.get_uid(self.name)
+            self.streamer_uid = await tc.get_uid(self.name)
         except IndexError:
             print(f'Streamer named "{self.name}" not found.')
             raise AttributeError('Streamer uid not set.')
@@ -32,12 +31,12 @@ class Streamer:
 
     async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None, print_status: bool = False):
         """
-        For a valid streamer_id, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
+        For a valid streamer_uid, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
         sanitized uids are placed into a given queue.
 
         Args:
             tc (TwitchClient):
-                A twitch client; used to collect follower information for a streamer_id.
+                A twitch client; used to collect follower information for a streamer_uid.
 
             q_out (asyncio.Queue):
                 The worker queue where follower ids are placed; fetches followings for the validated follower_id.
@@ -52,20 +51,19 @@ class Streamer:
         async def put_queue(id_list):
             [await q_out.put(foll_id) for foll_id in id_list]
 
-        follower_reply = await tc.get_full_n_followers(self.streamer_id, n_folls=self.sample_sz)
+        follower_reply = await tc.get_full_n_followers(self.streamer_uid, n_folls=self.sample_sz)
         next_cursor = follower_reply.get('cursor')
         self.total_followers = follower_reply.get('total', 0)
 
-        # Sanitized first fetch, then sanitize remaining fetches
+        # Sanitize first fetch, then sanitize remaining fetches
         bd = BotDetector()
         all_sanitized_uids = await bd.santize_foll_list(follower_reply.get('data'))
         if q_out:
             await put_queue(all_sanitized_uids)
 
         while (len(all_sanitized_uids) < self.sample_sz) and next_cursor:
-            # print(f'Total sanitized uids: {len(all_sanitized_uids)}')
             params = [('after', next_cursor)]
-            next_foll_reply = await tc.get_full_n_followers(self.streamer_id, params=params)
+            next_foll_reply = await tc.get_full_n_followers(self.streamer_uid, params=params)
             next_cursor = next_foll_reply.get('cursor')
             next_sanitized_uids = await bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
