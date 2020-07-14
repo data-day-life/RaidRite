@@ -69,8 +69,8 @@ async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_c
 
     print(f'  * Total Skipped: {folnet.num_skipped:>4}')
     print(f'  *    Total Kept: {folnet.num_collected:>4}')
-    # Remove *this* streamer_id from counter
-    folnet.followings_counter.pop(streamer.streamer_id, None)
+    # Remove *this* streamer_uid from counter
+    folnet.followings_counter.pop(streamer.streamer_uid, None)
 
     return streamer, folnet
 
@@ -84,10 +84,10 @@ async def run_format(some_name, sample_sz, n_consumers):
     await streamer(tc)
 
     print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={sample_sz} >>>>>{Col.end}')
-    print(f'\t\t{Col.yellow}uid: {streamer.streamer_id}{Col.end}')
+    print(f'\t\t{Col.yellow}uid: {streamer.streamer_uid}{Col.end}')
     print(f'\t{Col.magenta}N consumers: {n_consumers}')
 
-    folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_id)
+    folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_uid)
     streamer, folnet = await run_queue(tc, streamer, folnet)
 
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
@@ -106,7 +106,7 @@ async def run_format(some_name, sample_sz, n_consumers):
 async def main():
     some_name = 'stroopc'
     sample_sz = 300
-    n_consumers = 50
+    n_consumers = 60
     await run_format(some_name, sample_sz, n_consumers)
 
 
