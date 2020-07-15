@@ -3,7 +3,7 @@ from app.twitch_client_v2 import TwitchClient
 from app.streamer import Streamer
 from app.follower_network import FollowNet
 from time import perf_counter
-
+from app.colors import Col
 
 
 class LiveStreamInfo:
@@ -18,20 +18,24 @@ class LiveStreamInfo:
         self.last_mutual_followings = None
 
 
-    def __str__(self, result=''):
-        result += f'Calls to Twitch:  {self.num_live_stream_calls_to_twitch}\n'
-        result += f' Live Streams (len): {len(self.live_streams)}\n'
-        result += f'  Unchecked Live UIDs (len):  {len(self.unchecked_live_uids)}\n'
-        result += f'    Checked Live UIDs (len):  {len(self.checked_live_uids)}\n'
-        result += '-.-'*10+'\n'
-        result += f' Live Streams:  {self.live_streams}\n'
-        result += f' Unchecked Uids:  {self.unchecked_live_uids}\n'
-        result += f' Checked Uids:  {self.checked_live_uids}'
-        result += '-.-' * 10 + '\n'
-        result += f'Last Mutual Followings (len): {len(self.last_mutual_followings)}\n'
-        result += f'Last Mutual Followings: {self.last_mutual_followings}'
+    def __str__(self, result='\n'):
+        result += f'{Col.orange}<<<<< Live Stream Info {Col.end}\n'
+        result += f'{Col.white}  * Calls to Twitch: {self.num_live_stream_calls_to_twitch}{Col.end}\n'
+        result += f'{Col.orange} > Live Streams (sz={len(self.live_streams)}):{Col.end}\n'
+        result += f'     {self.live_streams}\n'
+        result += f'{Col.orange} > Unchecked Live UIDs (sz={len(self.unchecked_live_uids)}):{Col.end}\n'
+        result += f'     {self.unchecked_live_uids}\n'
+        result += f'{Col.orange} > Checked Live UIDs (sz={len(self.checked_live_uids)}):{Col.end}\n'
+        result += f'     {self.checked_live_uids}\n'
+        result += f'{Col.orange} > Last Mutual Followings (sz={len(self.last_mutual_followings)}):{Col.end}\n'
+        result += f'     {self.last_mutual_followings}'
 
         return result
+
+
+    @staticmethod
+    def filter_language(live_streams, lang='en'):
+        return [ls for ls in live_streams if ls.get('language', None) == lang]
 
 
     async def consume_mutual_followings(self, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
@@ -68,7 +72,7 @@ class LiveStreamInfo:
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
     q_followers = asyncio.Queue()
     q_followings = asyncio.Queue()
-    await streamer.produce_follower_samples(tc, q_out=q_followers, print_status=True)
+    await streamer.produce_follower_samples(tc, q_out=q_followers)
 
     consume_followings = [asyncio.create_task(
         folnet.consume_follower_samples(q_in=q_followers, q_out=q_followings)) for _ in range(n_consumers)]
@@ -82,34 +86,31 @@ async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls:
     consume_livestreams.cancel()
 
 
-
-async def main():
-    some_name = 'emilybarkiss'
-    sample_sz = 300
-    n_consumers = 100
-    await run_format(some_name, sample_sz, n_consumers)
-
-
 async def run_format(some_name, sample_sz, n_consumers):
-    from app.colors import Col
-    t = perf_counter()
-
     tc = TwitchClient()
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
     folnet = FollowNet(tc, streamer.streamer_uid)
     ls = LiveStreamInfo(tc)
-
-    print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={sample_sz} >>>>>{Col.end}')
-    print(f'\t\t{Col.yellow}uid: {streamer.streamer_uid}{Col.end}')
-    print(f'\t{Col.magenta}N consumers: {n_consumers}{Col.end}')
-
     await run_queue(tc, streamer, folnet, ls, n_consumers)
 
+    print(streamer)
+    print(folnet)
     print(ls)
-    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-
     await tc.close()
+
+
+async def main():
+    t = perf_counter()
+    some_name = 'emilybarkiss'
+    sample_sz = 300
+    n_consumers = 100
+    await run_format(some_name, sample_sz, n_consumers)
+
+    print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
+    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
+    from datetime import datetime
+    print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
 
 if __name__ == "__main__":
