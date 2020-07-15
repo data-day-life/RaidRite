@@ -12,21 +12,20 @@ class Streamer:
         self.streamer_uid = streamer_id
         self.sample_sz = sample_sz
         self.total_followers = None
-        self.sanitized_follower_ids = None
+        self.sanitized_follower_ids = list()
         self.bd = BotDetector()
 
         if self.streamer_uid is None and self.name is None:
             raise AttributeError('Neither streamer_uid name nor uid were provided')
 
 
-    def __str__(self):
-        result = ''
-        result += f'{Col.bold}{Col.yellow}\t<<<<< {self.name}  |  n={self.sample_sz} >>>>>{Col.end}\n'
-        result += f'\t\t{Col.yellow}uid: {self.streamer_uid}{Col.end}\n'
-        result += str(self.bd) + '\n'
-        result += f'> Total sanitized uids: {len(self.sanitized_follower_ids)}\n'
-        result += f'> Total followers: {self.total_followers}\n'
-        result += f'Follower ID List:\n  {self.sanitized_follower_ids}\n'
+    def __str__(self, result='\n'):
+        result += f'{Col.bold}{Col.yellow}<<<<< {self.name}  |  n={self.sample_sz} >>>>>{Col.end}\n'
+        result += f'\t\t{Col.yellow}🡲 uid: {self.streamer_uid}{Col.end}\n'
+        result += f'{Col.white}  * Total followers: {self.total_followers}{Col.end}\n'
+        result += f'{Col.white}  * {str(self.bd)}{Col.end}\n'
+        result += f'{Col.yellow}Follower ID List (sz={len(self.sanitized_follower_ids)}):{Col.end}\n'
+        result += f'  {self.sanitized_follower_ids}'
 
         return result
 
@@ -85,11 +84,10 @@ class Streamer:
 
 
 async def main():
+    t = perf_counter()
     tc = TwitchClient()
     some_name = 'emilybarkiss'
     sample_sz = 300
-
-    t = perf_counter()
 
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
