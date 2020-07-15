@@ -24,7 +24,7 @@ class Streamer:
         result += f'\t\t{Col.yellow}🡲 uid: {self.streamer_uid}{Col.end}\n'
         result += f'{Col.white}  * Total followers: {self.total_followers}{Col.end}\n'
         result += f'{Col.white}  * {str(self.bd)}{Col.end}\n'
-        result += f'{Col.yellow}Follower ID List (sz={len(self.sanitized_follower_ids)}):{Col.end}\n'
+        result += f'{Col.yellow} > Follower ID List (sz={len(self.sanitized_follower_ids)}):{Col.end}\n'
         result += f'  {self.sanitized_follower_ids}'
 
         return result
