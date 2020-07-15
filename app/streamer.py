@@ -2,6 +2,7 @@ import asyncio
 from app.twitch_client_v2 import TwitchClient
 from app.bot_detection import BotDetector
 from time import perf_counter
+from app.colors import Col
 
 
 class Streamer:
@@ -12,9 +13,22 @@ class Streamer:
         self.sample_sz = sample_sz
         self.total_followers = None
         self.sanitized_follower_ids = None
+        self.bd = BotDetector()
 
         if self.streamer_uid is None and self.name is None:
             raise AttributeError('Neither streamer_uid name nor uid were provided')
+
+
+    def __str__(self):
+        result = ''
+        result += f'{Col.bold}{Col.yellow}\t<<<<< {self.name}  |  n={self.sample_sz} >>>>>{Col.end}\n'
+        result += f'\t\t{Col.yellow}uid: {self.streamer_uid}{Col.end}\n'
+        result += str(self.bd) + '\n'
+        result += f'> Total sanitized uids: {len(self.sanitized_follower_ids)}\n'
+        result += f'> Total followers: {self.total_followers}\n'
+        result += f'Follower ID List:\n  {self.sanitized_follower_ids}\n'
+
+        return result
 
 
     async def __call__(self, tc: TwitchClient):
@@ -29,7 +43,7 @@ class Streamer:
             raise AttributeError('Streamer uid not set.')
 
 
-    async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None, print_status: bool = False):
+    async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         """
         For a valid streamer_uid, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
         sanitized uids are placed into a given queue.
@@ -40,9 +54,6 @@ class Streamer:
 
             q_out (asyncio.Queue):
                 The worker queue where follower ids are placed; fetches followings for the validated follower_id.
-
-            print_status (bool):
-                Prints information about total followers, total skipped, and total kept (sanitized).
 
         Returns:
             A list of sanitized follower uids; length is not necessarily equal to sample_sz.
@@ -56,8 +67,7 @@ class Streamer:
         self.total_followers = follower_reply.get('total', 0)
 
         # Sanitize first fetch, then sanitize remaining fetches
-        bd = BotDetector()
-        all_sanitized_uids = await bd.santize_foll_list(follower_reply.get('data'))
+        all_sanitized_uids = await self.bd.santize_foll_list(follower_reply.get('data'))
         if q_out:
             await put_queue(all_sanitized_uids)
 
@@ -65,15 +75,10 @@ class Streamer:
             params = [('after', next_cursor)]
             next_foll_reply = await tc.get_full_n_followers(self.streamer_uid, params=params)
             next_cursor = next_foll_reply.get('cursor')
-            next_sanitized_uids = await bd.santize_foll_list(next_foll_reply.get('data'))
+            next_sanitized_uids = await self.bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
             if q_out:
                 await put_queue(next_sanitized_uids)
-
-        if print_status:
-            print(f'> Removed {bd.total_removed} potential follower bots total.')
-            print(f'> Total sanitized uids: {len(all_sanitized_uids)}')
-            print(f'> Total followers: {self.total_followers}')
 
         self.sanitized_follower_ids = all_sanitized_uids
         return self.sanitized_follower_ids
@@ -84,18 +89,14 @@ async def main():
     some_name = 'emilybarkiss'
     sample_sz = 300
 
-    from app.colors import Col
-    print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={sample_sz} >>>>>{Col.end}')
     t = perf_counter()
 
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
-    await streamer.produce_follower_samples(tc, print_status=True)
+    await streamer.produce_follower_samples(tc)
 
+    print(streamer)
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-
-    print(f'Follower ID List:\n {streamer.sanitized_follower_ids}')
-    print(f'Length of Foll List:\n {len(streamer.sanitized_follower_ids)}')
 
     await tc.close()
 
