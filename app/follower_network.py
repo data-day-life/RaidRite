@@ -24,9 +24,9 @@ class FollowNet:
         result += f'{Col.green}<<<<< Follower Network {Col.end}\n'
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
-        result += f'{Col.green}  Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
+        result += f'{Col.green} > Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
         result += f'     {self.followings_counter}\n'
-        result += f'{Col.green}  Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
+        result += f'{Col.green} > Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
         result += f'     {self.mutual_followings}'
 
         return result
