@@ -82,15 +82,13 @@ async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_c
     for c in consumers:
         c.cancel()
 
-    return streamer, folnet
-
 
 async def run_format(some_name, sample_sz):
     tc = TwitchClient()
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
     folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_uid)
-    streamer, folnet = await run_queue(tc, streamer, folnet)
+    await run_queue(tc, streamer, folnet)
 
     print(streamer)
     print(folnet)
