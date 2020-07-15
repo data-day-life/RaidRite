@@ -3,11 +3,10 @@ from collections import Counter
 from time import perf_counter
 from app.twitch_client_v2 import TwitchClient
 from app.streamer import Streamer
+from app.colors import Col
 import logging
 
 module_logger = logging.getLogger('follower_network.py')
-
-# Just gets followers followings and mutual followings
 
 
 class FollowNet:
@@ -20,8 +19,20 @@ class FollowNet:
         self.num_skipped = 0
 
 
+    def __str__(self, result='\n'):
+        result += f'{Col.green}Follower Network: {Col.end}\n'
+        result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
+        result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
+        result += f'{Col.green}  Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
+        result += f'     {self.followings_counter}\n'
+        result += f'{Col.green}  Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
+        result += f'     {self.mutual_followings}\n'
+
+        return result
+
+
     @property
-    def mutual_followings(self, min_mutual=2):
+    def mutual_followings(self, min_mutual=3):
         return {uid for uid, count in self.followings_counter.items() if count >= min_mutual and
                 uid != self.streamer_id}
 
@@ -61,54 +72,42 @@ class FollowNet:
 
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
     q_followers = asyncio.Queue()
-    await streamer.produce_follower_samples(tc, q_out=q_followers, print_status=True)
+    await streamer.produce_follower_samples(tc, q_out=q_followers)
     consumers = [asyncio.create_task(folnet.consume_follower_samples(q_in=q_followers)) for _ in range(n_consumers)]
     await q_followers.join()
     for c in consumers:
         c.cancel()
-
-    print(f'  * Total Skipped: {folnet.num_skipped:>4}')
-    print(f'  *    Total Kept: {folnet.num_collected:>4}')
     # Remove *this* streamer_uid from counter
     folnet.followings_counter.pop(streamer.streamer_uid, None)
 
     return streamer, folnet
 
 
-async def run_format(some_name, sample_sz, n_consumers):
-    from app.colors import Col
-    t = perf_counter()
-
+async def run_format(some_name, sample_sz):
     tc = TwitchClient()
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
-
-    print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={sample_sz} >>>>>{Col.end}')
-    print(f'\t\t{Col.yellow}uid: {streamer.streamer_uid}{Col.end}')
-    print(f'\t{Col.magenta}N consumers: {n_consumers}')
-
     folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_uid)
     streamer, folnet = await run_queue(tc, streamer, folnet)
 
-    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-    print(f'{Col.green}Followings Counter (sz={len(folnet.followings_counter)}){Col.end}')
-    print(f'   {folnet.followings_counter}')
-
-    print(f'{Col.green}Mutual Followings (sz={len(folnet.mutual_followings)}){Col.end}')
-    print(f'   {folnet.mutual_followings}')
-
-    from datetime import datetime
-    print(f'{Col.red}\t ««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.red}')
-
+    print(streamer)
+    print(folnet)
     await folnet.tc.close()
 
 
 async def main():
-    some_name = 'stroopc'
+    t = perf_counter()
+    some_name = 'emilybarkiss'
     sample_sz = 300
     n_consumers = 60
-    await run_format(some_name, sample_sz, n_consumers)
+    await run_format(some_name, sample_sz)
 
+    print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
+    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
+    from datetime import datetime
+    print(f'{Col.red}\t ««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+#TODO: Add followings_counter as attribute that pops streamer_uid and returns foll_cntr
