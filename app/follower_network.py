@@ -10,11 +10,12 @@ module_logger = logging.getLogger('follower_network.py')
 
 
 class FollowNet:
+    MIN_MUTUAL = 3
 
     def __init__(self, tc: TwitchClient, streamer_id):
         self.tc = tc
         self.streamer_id = streamer_id
-        self.followings_counter = Counter()
+        self._followings_counter = Counter()
         self.num_collected = 0
         self.num_skipped = 0
 
@@ -32,9 +33,14 @@ class FollowNet:
 
 
     @property
-    def mutual_followings(self, min_mutual=3):
-        return {uid for uid, count in self.followings_counter.items() if count >= min_mutual and
-                uid != self.streamer_id}
+    def followings_counter(self) -> Counter:
+        self._followings_counter.pop(self.streamer_id, None)
+        return self._followings_counter
+
+
+    @property
+    def mutual_followings(self) -> set:
+        return {uid for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
 
 
     async def consume_follower_samples(self, q_in, q_out=None, max_followings=150) -> None:
@@ -65,9 +71,7 @@ class FollowNet:
             else:
                 # print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
                 self.num_skipped += 1
-
             q_in.task_done()
-
 
 
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
@@ -77,8 +81,6 @@ async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_c
     await q_followers.join()
     for c in consumers:
         c.cancel()
-    # Remove *this* streamer_uid from counter
-    folnet.followings_counter.pop(streamer.streamer_uid, None)
 
     return streamer, folnet
 
@@ -105,9 +107,8 @@ async def main():
     print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
     from datetime import datetime
-    print(f'{Col.red}\t ««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
+    print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
+
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-#TODO: Add followings_counter as attribute that pops streamer_uid and returns foll_cntr
