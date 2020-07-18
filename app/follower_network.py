@@ -91,12 +91,12 @@ async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_c
         c.cancel()
 
 
-async def run_format(some_name, sample_sz):
+async def run_format(some_name, sample_sz, n_consumers=50):
     tc = TwitchClient()
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     await streamer(tc)
     folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_uid)
-    await run_queue(tc, streamer, folnet)
+    await run_queue(tc, streamer, folnet, n_consumers)
 
     print(streamer)
     print(folnet)
@@ -106,9 +106,9 @@ async def run_format(some_name, sample_sz):
 async def main():
     t = perf_counter()
     some_name = 'emilybarkiss'
-    sample_sz = 300
+    sample_sz = 350
     n_consumers = 60
-    await run_format(some_name, sample_sz)
+    await run_format(some_name, sample_sz, n_consumers)
 
     print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
