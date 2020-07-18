@@ -61,24 +61,16 @@ class FollowNet:
         """
         while True:
             follower_id = await q_in.get()
-            if follower_id != 'DONE':
-                following_reply = await self.tc.get_full_n_followings(follower_id)
-                if following_reply.get('total') < max_followings:
-                    foll_data = following_reply.get('data')
-                    self.followings_counter.update([following.get('to_id') for following in foll_data])
-                    self.num_collected += 1
-                    if q_out:
-                        await q_out.put(self.mutual_followings)
-                else:
-                    # print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
-                    self.num_skipped += 1
-                # q_in.task_done()
-
-            elif q_out:
-                await q_out.put_nowait('DONE')
-            #     q_in.task_done()
-            # else:
-            #     q_in.task_done()
+            following_reply = await self.tc.get_full_n_followings(follower_id)
+            if following_reply.get('total') < max_followings:
+                foll_data = following_reply.get('data')
+                self.followings_counter.update([following.get('to_id') for following in foll_data])
+                self.num_collected += 1
+                if q_out:
+                    await q_out.put(self.mutual_followings)
+            else:
+                # print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
+                self.num_skipped += 1
             q_in.task_done()
 
 
