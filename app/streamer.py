@@ -79,10 +79,6 @@ class Streamer:
             if q_out:
                 await put_queue(next_sanitized_uids)
 
-        if q_out:
-            await q_out.put('DONE')
-
-
         self.sanitized_follower_ids = all_sanitized_uids
         return self.sanitized_follower_ids
 
