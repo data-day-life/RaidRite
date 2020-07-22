@@ -13,6 +13,14 @@ class TwitchClient(Client):
         self.http = self.http
 
 
+    async def __aenter__(self):
+        return self
+
+
+    async def __aexit__(self, *args):
+        return await self.close()
+
+
     async def close(self):
         await self.http._session.close()
 
@@ -58,32 +66,16 @@ class TwitchClient(Client):
 
     async def get_streams(self, *, game_id=None, language=None, channels=None, limit=None):
         if not channels:
-            await self.http.get_streams(game_id=game_id, language=language, channels=channels, limit=limit)
+            return await self.http.get_streams(game_id=game_id, language=language, channels=channels, limit=limit)
 
-        if channels and len(channels) <= 100:
+        elif channels and len(channels) <= 100:
             return await self.http.get_streams(game_id=game_id, language=language, channels=channels, limit=limit)
 
         else:
-            # split the list into chunks of size 100 & collect independently
+            # split the list into chunks of size 100 & collect independently, return results as flat list
             chunks = [channels[idx:idx+100] for idx in range(0, len(channels), 100)]
             streams = [self.get_streams(channels=chunk) for chunk in chunks]
             return list(chain.from_iterable(await asyncio.gather(*streams)))
-
-
-    # async def get_streams_and_followers(self, uid_list):
-    #     chunks = [uid_list[idx:idx+100] for idx in range(0, len(uid_list), 100)]
-    #
-    #     async def produce_live_streams(queue: asyncio.Queue, channel_list=uid_list):
-    #         if not uid_list:
-    #             raise AttributeError('No uid/channel list provided.')
-    #
-    #         async def put_queue(uids):
-    #             [await queue.put(uids) for uid in uids]
-    #
-    #         # Get lists of live streams
-
-
-
 
 
 async def main(name_list):
