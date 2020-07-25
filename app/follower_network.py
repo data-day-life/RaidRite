@@ -1,5 +1,6 @@
 import asyncio
 from collections import Counter
+from itertools import islice, chain
 from time import perf_counter
 from app.twitch_client_v2 import TwitchClient
 from app.streamer import Streamer
@@ -10,7 +11,7 @@ module_logger = logging.getLogger('follower_network.py')
 
 
 class FollowNet:
-    MIN_MUTUAL = 3
+    MIN_MUTUAL = 2
     MAX_FOLLOWINGS = 150
     BATCH_SZ = 100
 
@@ -20,7 +21,7 @@ class FollowNet:
         self._followings_counter = Counter()
         self.num_collected = 0
         self.num_skipped = 0
-        self.put_history = set()
+        self.batch_history = set()
 
 
     def __str__(self, result='\n'):
@@ -30,7 +31,9 @@ class FollowNet:
         result += f'{Col.green} > Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
         result += f'     {self.followings_counter}\n'
         result += f'{Col.green} > Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
-        result += f'     {self.mutual_followings}'
+        result += f'     {self.mutual_followings}\n'
+        result += f'{Col.green} > Batch History (sz={len(self.batch_history)}){Col.end}\n'
+        result += f'     {self.batch_history}\n'
 
         return result
 
@@ -61,66 +64,63 @@ class FollowNet:
 
         while True:
             follower_id = await q_in.get()
-            if follower_id == 'DONE':
-                print('SAW DONE')
-                # DO LAST BATCH(ES)
-                # TODO: FIX q-OUT method for final X candidates
-                if q_out:
-                    await q_out.put(self.new_batch_candidates())
+            if follower_id != 'DONE':
+                following_reply = await self.tc.get_full_n_followings(follower_id)
+                new_candidate_batches = self.update_followings(following_reply)
+                if new_candidate_batches and q_out:
+                    [q_out.put_nowait(batch) for batch in new_candidate_batches]
 
             else:
-                following_reply = await self.tc.get_full_n_followings(follower_id)
-                new_followings = await self.update_followings(following_reply)
-                if new_followings and q_out:
-                    [q_out.put_nowait(new_candidate) for new_candidate in new_followings]
-                    # await q_out.put(new_batch_candidates)
+                print('DONE -- Saw "None"')
+                await asyncio.sleep(1)
+                print(len(self.mutual_followings))
+                # DO LAST BATCH(ES)
+                print(f'Batch History (sz={len(self.batch_history)})')
+                print(f' * {self.batch_history}')
+                remaining_batches = self.new_candidate_batches(remainder=True)
+                print(f'Remaining Batches (sz={[len(b) for b in remaining_batches]})')
+                print(f' * {remaining_batches}')
 
-            # if following_reply.get('total') < max_followings:
-            #     foll_data = following_reply.get('data')
-            #     self.followings_counter.update([following.get('to_id') for following in foll_data])
-            #     self.num_collected += 1
-            #     if q_out:
-            #         await q_out.put(self.mutual_followings)
-            # else:
-            #     # print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
-            #     self.num_skipped += 1
+                # if q_out:
+                #     [q_out.put_nowait(batch) for batch in remaining_batches]
 
             q_in.task_done()
 
-        # q_in.task_done()
 
-    async def update_followings(self, following_reply):
-        if following_reply and following_reply.get('total') <= self.MAX_FOLLOWINGS:
-            foll_data = following_reply.get('data')
-            self.followings_counter.update([following.get('to_id') for following in foll_data])
-            self.num_collected += 1
+    def update_followings(self, following_reply, all_batches=False):
+        if following_reply:
+            if following_reply.get('total') <= self.MAX_FOLLOWINGS:
+                foll_data = following_reply.get('data')
+                self.followings_counter.update([following.get('to_id') for following in foll_data])
+                self.num_collected += 1
+            else:
+                self.num_skipped += 1
+
+        if all_batches:
+            return self.new_candidate_batches(remainder=True)
         else:
-            self.num_skipped += 1
-
-        return self.new_batch_candidates()
+            return self.new_candidate_batches(remainder=False)
 
 
-    def new_batch_candidates(self, remainder=False):
-        if remainder:
-            new_candidate_batch = self.mutual_followings - self.put_history
-            self.put_history.update(new_candidate_batch)
-        else:
-            # get batches of sz BATCH_SZ
-            new_candidates = self.mutual_followings - self.put_history
+    def new_candidate_batches(self, remainder=False):
+        new_candidates = self.mutual_followings - self.batch_history
+        batches = self.batchify(list(new_candidates), remainder)
+        flat_candidates = batches
+        if remainder and batches and type(batches[0]) is list:
+            flat_candidates = [uid for sublist in batches for uid in sublist]
+        self.batch_history.update(flat_candidates)
+
+        return batches
 
 
-        # Update put_history
+    def batchify(self, candidates, fetch_all=False):
+        result = []
+        if fetch_all:
+            result = [candidates[i:i + self.BATCH_SZ] for i in range(0, len(candidates), self.BATCH_SZ)]
+        elif len(candidates) > self.BATCH_SZ:
+            result = candidates[:self.BATCH_SZ]
 
-
-        return new_candidate_batch
-
-    # chunks = [channels[idx:idx + 100] for idx in range(0, len(channels), 100)]
-    # streams = [self.get_streams(channels=chunk) for chunk in chunks]
-    # return list(chain.from_iterable(await asyncio.gather(*streams)))
-
-
-    def candidate_batch_sz(self):
-        return self.mutual_followings - self.put_history
+        return result
 
 
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
@@ -141,7 +141,6 @@ async def run_format(some_name, sample_sz, n_consumers=50):
 
     print(streamer)
     print(folnet)
-    print(f'Num saw: {folnet.num_saw}')
     await folnet.tc.close()
 
 
@@ -149,7 +148,7 @@ async def main():
     t = perf_counter()
     some_name = 'emilybarkiss'
     sample_sz = 350
-    n_consumers = 60
+    n_consumers = 100
     await run_format(some_name, sample_sz, n_consumers)
 
     print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
