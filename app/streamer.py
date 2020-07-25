@@ -66,7 +66,7 @@ class Streamer:
         self.total_followers = follower_reply.get('total', 0)
 
         # Sanitize first fetch, then sanitize remaining fetches
-        all_sanitized_uids = await self.bd.santize_foll_list(follower_reply.get('data'))
+        all_sanitized_uids = self.bd.santize_foll_list(follower_reply.get('data'))
         if q_out:
             await put_queue(all_sanitized_uids)
 
@@ -74,13 +74,13 @@ class Streamer:
             params = [('after', next_cursor)]
             next_foll_reply = await tc.get_full_n_followers(self.streamer_uid, params=params)
             next_cursor = next_foll_reply.get('cursor')
-            next_sanitized_uids = await self.bd.santize_foll_list(next_foll_reply.get('data'))
+            next_sanitized_uids = self.bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
             if q_out:
                 await put_queue(next_sanitized_uids)
 
         if q_out:
-            q_out.put_nowait('DONE')
+            await q_out.put('DONE')
 
         self.sanitized_follower_ids = all_sanitized_uids
         return self.sanitized_follower_ids
@@ -88,18 +88,16 @@ class Streamer:
 
 async def main():
     t = perf_counter()
-    tc = TwitchClient()
     some_name = 'emilybarkiss'
     sample_sz = 300
 
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
-    await streamer(tc)
-    await streamer.produce_follower_samples(tc)
+    async with TwitchClient() as tc:
+        await streamer(tc)
+        await streamer.produce_follower_samples(tc)
 
     print(streamer)
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-
-    await tc.close()
 
 
 if __name__ == "__main__":
