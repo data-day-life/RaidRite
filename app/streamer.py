@@ -58,8 +58,8 @@ class Streamer:
             A list of sanitized follower uids; length is not necessarily equal to sample_sz.
         """
 
-        async def put_queue(id_list):
-            [await q_out.put(foll_id) for foll_id in id_list]
+        def put_queue(id_list):
+            [q_out.put_nowait(foll_id) for foll_id in id_list]
 
         follower_reply = await tc.get_full_n_followers(self.streamer_uid, n_folls=self.sample_sz)
         next_cursor = follower_reply.get('cursor')
@@ -68,7 +68,7 @@ class Streamer:
         # Sanitize first fetch, then sanitize remaining fetches
         all_sanitized_uids = self.bd.santize_foll_list(follower_reply.get('data'))
         if q_out:
-            await put_queue(all_sanitized_uids)
+            put_queue(all_sanitized_uids)
 
         while (len(all_sanitized_uids) < self.sample_sz) and next_cursor:
             params = [('after', next_cursor)]
@@ -77,10 +77,10 @@ class Streamer:
             next_sanitized_uids = self.bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
             if q_out:
-                await put_queue(next_sanitized_uids)
+                put_queue(next_sanitized_uids)
 
         if q_out:
-            await q_out.put('DONE')
+            q_out.put_nowait('DONE')
 
         self.sanitized_follower_ids = all_sanitized_uids
         return self.sanitized_follower_ids
