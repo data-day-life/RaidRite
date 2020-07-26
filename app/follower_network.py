@@ -106,7 +106,7 @@ class FollowNet:
         new_candidates = self.mutual_followings - self.batch_history
         batches = self.batchify(list(new_candidates), remainder)
         flat_candidates = batches
-        if remainder and batches and type(batches[0]) is list:
+        if remainder and batches and isinstance(batches[0], list):
             flat_candidates = [uid for sublist in batches for uid in sublist]
         self.batch_history.update(flat_candidates)
 
@@ -125,9 +125,14 @@ class FollowNet:
 
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
     q_followers = asyncio.Queue()
-    await streamer.produce_follower_samples(tc, q_out=q_followers)
+
+    # Initialize producers and consumers for processing
+    producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_followers))
     consumers = [asyncio.create_task(folnet.consume_follower_samples(q_in=q_followers)) for _ in range(n_consumers)]
+    # Block until producer and consumers are exhausted
+    await asyncio.gather(producer)
     await q_followers.join()
+    # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
     for c in consumers:
         c.cancel()
 
