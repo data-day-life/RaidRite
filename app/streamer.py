@@ -31,7 +31,7 @@ class Streamer:
         return result
 
 
-    async def __call__(self, tc: TwitchClient):
+    async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         try:
             if self.validate() and not self.uid:
                 self.uid = await tc.get_uid(self.name)
@@ -40,6 +40,9 @@ class Streamer:
             print(f'Streamer named "{self.name}" not found on Twitch; unable to fetch user id.')
         except AttributeError as err:
             print(err)
+
+        if q_out:
+            await self.produce_follower_samples(tc, q_out)
 
 
     def validate(self):
@@ -113,7 +116,7 @@ async def main():
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     async with TwitchClient() as tc:
         await streamer(tc)
-        await streamer.produce_follower_samples(tc)
+        # await streamer.produce_follower_samples(tc)
 
     print(streamer)
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
