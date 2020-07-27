@@ -1,6 +1,5 @@
 import asyncio
 from collections import Counter
-from itertools import islice, chain
 from time import perf_counter
 from app.twitch_client_v2 import TwitchClient
 from app.streamer import Streamer
@@ -15,8 +14,7 @@ class FollowNet:
     MAX_FOLLOWINGS = 150
     BATCH_SZ = 100
 
-    def __init__(self, tc: TwitchClient, streamer_id):
-        self.tc = tc
+    def __init__(self, streamer_id):
         self.streamer_id = streamer_id
         self._followings_counter = Counter()
         self.num_collected = 0
@@ -38,6 +36,15 @@ class FollowNet:
         return result
 
 
+    async def __aenter__(self):
+        return self
+
+    # TODO: this needs to be modified to work with q_out
+    async def __aexit__(self, *args):
+        self.new_candidate_batches(remainder=True)
+        return
+
+
     @property
     def followings_counter(self) -> Counter:
         self._followings_counter.pop(self.streamer_id, None)
@@ -49,14 +56,17 @@ class FollowNet:
         return {uid for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
 
 
-    async def consume_follower_samples(self, q_in, q_out=None) -> None:
+    async def consume_follower_samples(self, tc: TwitchClient, q_in, q_out=None) -> None:
         """
         Fetches a follower id from the queue and collects a list of uids that they are following provided that they
         are not following more than max_total_followings.
 
         Args:
+            tc (TwitchClient):
+                An instance of a Twitch client
+
             q_in (asyncio.Queue):
-                A queue of validated follower ids; used to fetch followings of followers.
+                A queue of valid follower ids; used to fetch followings of followers.
 
             q_out (asyncio.Queue):
                 A queue in which mutual followings are placed.
@@ -65,21 +75,21 @@ class FollowNet:
         while True:
             follower_id = await q_in.get()
             if follower_id != 'DONE':
-                following_reply = await self.tc.get_full_n_followings(follower_id)
+                following_reply = await tc.get_full_n_followings(follower_id)
                 new_candidate_batches = self.update_followings(following_reply)
                 if new_candidate_batches and q_out:
                     [q_out.put_nowait(batch) for batch in new_candidate_batches]
 
             else:
-                print('DONE -- Saw "None"')
-                await asyncio.sleep(1)
-                print(len(self.mutual_followings))
-                # DO LAST BATCH(ES)
-                print(f'Batch History (sz={len(self.batch_history)})')
-                print(f' * {self.batch_history}')
-                remaining_batches = self.new_candidate_batches(remainder=True)
-                print(f'Remaining Batches (sz={[len(b) for b in remaining_batches]})')
-                print(f' * {remaining_batches}')
+                print('DONE -- Saw "Done"')
+                # await asyncio.sleep(1)
+                # print(len(self.mutual_followings))
+                # # DO LAST BATCH(ES)
+                # print(f'Batch History (sz={len(self.batch_history)})')
+                # print(f' * {self.batch_history}')
+                # remaining_batches = self.new_candidate_batches(remainder=True)
+                # print(f'Remaining Batches (sz={[len(b) for b in remaining_batches]})')
+                # print(f' * {remaining_batches}')
 
                 # if q_out:
                 #     [q_out.put_nowait(batch) for batch in remaining_batches]
@@ -124,29 +134,29 @@ class FollowNet:
 
 
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
-    q_followers = asyncio.Queue()
+    q_foll_ids = asyncio.Queue()
 
     # Initialize producers and consumers for processing
-    producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_followers))
-    consumers = [asyncio.create_task(folnet.consume_follower_samples(q_in=q_followers)) for _ in range(n_consumers)]
+    producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
+    consumers = [asyncio.create_task(folnet.consume_follower_samples(tc, q_in=q_foll_ids)) for _ in range(n_consumers)]
     # Block until producer and consumers are exhausted
     await asyncio.gather(producer)
-    await q_followers.join()
+    await q_foll_ids.join()
     # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
     for c in consumers:
         c.cancel()
 
+    # DO LAST BATCH(ES)
+    folnet.new_candidate_batches(remainder=True)
+
 
 async def run_format(some_name, sample_sz, n_consumers=50):
-    tc = TwitchClient()
-    streamer = Streamer(name=some_name, sample_sz=sample_sz)
-    await streamer(tc)
-    folnet = FollowNet(tc=tc, streamer_id=streamer.streamer_uid)
-    await run_queue(tc, streamer, folnet, n_consumers)
-
-    print(streamer)
-    print(folnet)
-    await folnet.tc.close()
+    async with TwitchClient() as tc:
+        streamer = Streamer(name=some_name, sample_sz=sample_sz)
+        folnet = FollowNet(streamer_id=streamer.uid)
+        await run_queue(tc, streamer, folnet, n_consumers)
+        print(streamer)
+        print(folnet)
 
 
 async def main():
