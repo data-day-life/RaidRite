@@ -9,19 +9,20 @@ class Streamer:
 
     def __init__(self, name=None, streamer_id=None, sample_sz=300):
         self.name = name
-        self.streamer_uid = streamer_id
+        self.uid = streamer_id
+        self.valid = False
         self.sample_sz = sample_sz
         self.total_followers = None
         self.sanitized_follower_ids = list()
         self.bd = BotDetector()
 
-        if self.streamer_uid is None and self.name is None:
-            raise AttributeError('Neither streamer_uid name nor uid were provided')
+        if self.uid is None and self.name is None:
+            raise AttributeError('Neither uid name nor uid were provided')
 
 
     def __str__(self, result='\n'):
         result += f'{Col.bold}{Col.yellow}<<<<< {self.name}  |  n={self.sample_sz} >>>>>{Col.end}\n'
-        result += f'\t\t{Col.yellow}🡲 uid: {self.streamer_uid}{Col.end}\n'
+        result += f'\t\t{Col.yellow}🡲 uid: {self.uid}{Col.end}\n'
         result += f'{Col.white}  * Total followers: {self.total_followers}{Col.end}\n'
         result += f'{Col.white}  * {str(self.bd)}{Col.end}\n'
         result += f'{Col.yellow} > Follower ID List (sz={len(self.sanitized_follower_ids)}):{Col.end}\n'
@@ -31,37 +32,55 @@ class Streamer:
 
 
     async def __call__(self, tc: TwitchClient):
-        if self.streamer_uid:
-            return
-        if not self.name:
-            raise AttributeError('Streamer name not set; unable to get_streamer_id()')
         try:
-            self.streamer_uid = await tc.get_uid(self.name)
+            if self.validate() and not self.uid:
+                self.uid = await tc.get_uid(self.name)
+            self.validate()
         except IndexError:
-            print(f'Streamer named "{self.name}" not found.')
+            print(f'Streamer named "{self.name}" not found on Twitch; unable to fetch user id.')
+        except AttributeError as err:
+            print(err)
+
+
+    def validate(self):
+        if self.uid or self.name:
+            self.valid = True
+        elif not self.name:
+            raise AttributeError('Streamer name not set.')
+        elif not self.uid:
             raise AttributeError('Streamer uid not set.')
+
+        return self.valid
 
 
     async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         """
-        For a valid streamer_uid, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
+        For a valid uid, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
         sanitized uids are placed into a given queue.
 
         Args:
             tc (TwitchClient):
-                A twitch client; used to collect follower information for a streamer_uid.
+                A twitch client; used to collect follower information for a uid.
 
             q_out (asyncio.Queue):
-                The worker queue where follower ids are placed; fetches followings for the validated follower_id.
+                The worker queue where follower ids are placed; fetches followings for the valid follower_id.
 
         Returns:
             A list of sanitized follower uids; length is not necessarily equal to sample_sz.
         """
 
+        try:
+            if not self.uid:
+                await self.__call__(tc)
+        except IndexError as err:
+            return print(err)
+        except AttributeError as err:
+            return print(err)
+
         def put_queue(id_list):
             [q_out.put_nowait(foll_id) for foll_id in id_list]
 
-        follower_reply = await tc.get_full_n_followers(self.streamer_uid, n_folls=self.sample_sz)
+        follower_reply = await tc.get_full_n_followers(self.uid, n_folls=self.sample_sz)
         next_cursor = follower_reply.get('cursor')
         self.total_followers = follower_reply.get('total', 0)
 
@@ -72,7 +91,7 @@ class Streamer:
 
         while (len(all_sanitized_uids) < self.sample_sz) and next_cursor:
             params = [('after', next_cursor)]
-            next_foll_reply = await tc.get_full_n_followers(self.streamer_uid, params=params)
+            next_foll_reply = await tc.get_full_n_followers(self.uid, params=params)
             next_cursor = next_foll_reply.get('cursor')
             next_sanitized_uids = self.bd.santize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
