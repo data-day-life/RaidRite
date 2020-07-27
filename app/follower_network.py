@@ -82,17 +82,6 @@ class FollowNet:
 
             else:
                 print('DONE -- Saw "Done"')
-                # await asyncio.sleep(1)
-                # print(len(self.mutual_followings))
-                # # DO LAST BATCH(ES)
-                # print(f'Batch History (sz={len(self.batch_history)})')
-                # print(f' * {self.batch_history}')
-                # remaining_batches = self.new_candidate_batches(remainder=True)
-                # print(f'Remaining Batches (sz={[len(b) for b in remaining_batches]})')
-                # print(f' * {remaining_batches}')
-
-                # if q_out:
-                #     [q_out.put_nowait(batch) for batch in remaining_batches]
 
             q_in.task_done()
 
@@ -133,30 +122,24 @@ class FollowNet:
         return result
 
 
-async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
-    q_foll_ids = asyncio.Queue()
+    async def run(self, tc: TwitchClient, streamer: Streamer, q_out=None, n_consumers=50):
+        q_foll_ids = asyncio.Queue()
 
-    # Initialize producers and consumers for processing
-    producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
-    consumers = [asyncio.create_task(folnet.consume_follower_samples(tc, q_in=q_foll_ids)) for _ in range(n_consumers)]
-    # Block until producer and consumers are exhausted
-    await asyncio.gather(producer)
-    await q_foll_ids.join()
-    # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
-    for c in consumers:
-        c.cancel()
+        # Initialize producers and consumers for processing
+        producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
+        consumers = [asyncio.create_task(
+            self.consume_follower_samples(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
+        # Block until producer and consumers are exhausted
+        await asyncio.gather(producer)
+        await q_foll_ids.join()
+        # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
+        for c in consumers:
+            c.cancel()
 
-    # DO LAST BATCH(ES)
-    folnet.new_candidate_batches(remainder=True)
-
-
-async def run_format(some_name, sample_sz, n_consumers=50):
-    async with TwitchClient() as tc:
-        streamer = Streamer(name=some_name, sample_sz=sample_sz)
-        folnet = FollowNet(streamer_id=streamer.uid)
-        await run_queue(tc, streamer, folnet, n_consumers)
-        print(streamer)
-        print(folnet)
+        # Process any remaining batches
+        remaining_batches = self.new_candidate_batches(remainder=True)
+        if q_out:
+            [q_out.put_nowait(batch) for batch in remaining_batches]
 
 
 async def main():
@@ -164,7 +147,13 @@ async def main():
     some_name = 'emilybarkiss'
     sample_sz = 350
     n_consumers = 100
-    await run_format(some_name, sample_sz, n_consumers)
+
+    async with TwitchClient() as tc:
+        streamer = Streamer(name=some_name, sample_sz=sample_sz)
+        folnet = FollowNet(streamer_id=streamer.uid)
+        await folnet.run(tc, streamer, n_consumers=n_consumers)
+        print(streamer)
+        print(folnet)
 
     print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
