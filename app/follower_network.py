@@ -67,9 +67,9 @@ class FollowNet:
             follower_id = await q_in.get()
             if follower_id != 'DONE':
                 following_reply = await tc.get_full_n_followings(follower_id)
-                new_candidate_batches = self.update_followings(following_reply)
-                if new_candidate_batches and q_out:
-                    [q_out.put_nowait(batch) for batch in new_candidate_batches]
+                new_candidate_batch = self.update_followings(following_reply)
+                if new_candidate_batch and q_out:
+                    q_out.put_nowait(new_candidate_batch)
 
             q_in.task_done()
 
