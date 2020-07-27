@@ -36,13 +36,12 @@ class FollowNet:
         return result
 
 
-    async def __aenter__(self):
-        return self
+    async def __aenter__(self, tc: TwitchClient, streamer: Streamer, q_out=None, n_consumers=50):
+        return await self.run(tc, streamer, q_out, n_consumers)
 
-    # TODO: this needs to be modified to work with q_out
+
     async def __aexit__(self, *args):
-        self.new_candidate_batches(remainder=True)
-        return
+        return self
 
 
     @property
@@ -79,9 +78,6 @@ class FollowNet:
                 new_candidate_batches = self.update_followings(following_reply)
                 if new_candidate_batches and q_out:
                     [q_out.put_nowait(batch) for batch in new_candidate_batches]
-
-            else:
-                print('DONE -- Saw "Done"')
 
             q_in.task_done()
 
