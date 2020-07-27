@@ -36,14 +36,6 @@ class FollowNet:
         return result
 
 
-    async def __aenter__(self, tc: TwitchClient, streamer: Streamer, q_out=None, n_consumers=50):
-        return await self.run(tc, streamer, q_out, n_consumers)
-
-
-    async def __aexit__(self, *args):
-        return self
-
-
     @property
     def followings_counter(self) -> Counter:
         self._followings_counter.pop(self.streamer_id, None)
