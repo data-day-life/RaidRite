@@ -10,7 +10,7 @@ class LiveStreamInfo:
     MAX_BATCH_SZ = 100
 
     def __init__(self):
-        self.live_streams = list()
+        self.live_streams = dict()
         self.num_live_stream_calls_to_twitch = 0
 
 
@@ -28,45 +28,66 @@ class LiveStreamInfo:
         return [ls for ls in live_streams if ls.get('language', None) == lang]
 
 
-    async def consume_candidate_batches(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
+    @staticmethod
+    def dictify(live_stream_list):
+        return {stream.get('user_id'): stream for stream in live_stream_list}
+
+
+    async def produce_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
         while True:
             candidate_batch = await q_in.get()
-            live_streams = await self.update_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
+            found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
+            self.live_streams.update(self.dictify(found_live_streams))
+
+            if q_out:
+                [q_out.put_nowait(stream.get('user_id', None)) for stream in found_live_streams]
+            q_in.task_done()
+
+
+    async def consume_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
+        while True:
+            live_streamer_uid = q_in.get()
+            total_followers = await tc.get_total_followers(live_streamer_uid)
+            self.live_streams.get(live_streamer_uid).update({'total': total_followers})
 
             if q_out:
                 pass
             q_in.task_done()
 
 
-    async def update_live_streams(self, tc: TwitchClient, candidates, filter_lang=True, lang='en'):
+    async def fetch_live_streams(self, tc: TwitchClient, candidates, filter_lang=True, lang='en'):
         live_candidates = await tc.get_streams(channels=candidates)
         if filter_lang:
             live_candidates = self.filter_language(live_candidates, lang=lang)
-        self.live_streams.extend(live_candidates)
         self.num_live_stream_calls_to_twitch += 1
 
         return live_candidates
 
 
+# TODO: adjust/account for remaining batch of folnet -- use folnet's call method?
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
     q_foll_ids = asyncio.Queue()
     q_followings = asyncio.Queue()
+    q_live_streams = asyncio.Queue()
 
     # Initialize producers and consumers for processing
     t_foll_ids = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
     t_followings = [asyncio.create_task(
         folnet.consume_follower_samples(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
-    t_livestreams = asyncio.create_task(ls.consume_candidate_batches(tc, q_followings))
+    t_livestreams = asyncio.create_task(ls.produce_live_streams(tc, q_in=q_followings, q_out=q_live_streams))
+    t_total_folls = asyncio.create_task(ls.consume_live_streams(tc, q_in=q_live_streams))
 
     # Block until producer and consumers are exhausted
     await asyncio.gather(t_foll_ids)
     await q_foll_ids.join()
     await q_followings.join()
+    await q_live_streams.join()
 
     # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
     for task in t_followings:
         task.cancel()
     t_livestreams.cancel()
+    t_total_folls.cancel()
 
 
 async def run_format(some_name, sample_sz, n_consumers):
@@ -80,6 +101,7 @@ async def run_format(some_name, sample_sz, n_consumers):
     print(streamer)
     print(folnet)
     print(ls)
+
     await tc.close()
 
 

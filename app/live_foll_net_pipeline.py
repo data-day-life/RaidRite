@@ -6,7 +6,7 @@ from app.bot_detection import BotDetector
 from app.streamer import Streamer
 
 # TODO: Final Result:
-#   1. Gets followers for streamer
+#   1. Gets followers for uid
 #   2. Gets followings of followers
 #   3. Gets live stream info for mutual followings
 #   thought process here is to check 100 new live streams for occurence of 2 mutual followings and check finally
@@ -32,11 +32,11 @@ class FollowNetPipeline:
     async def consume_follower_samples(self, q_in, q_out, max_total_followings=150) -> None:
         """
         Fetches a follower id from the queue and collects a list of uids that they are following provided that they
-        are not following more than max_total_followings.
+        are not following more than max_followings.
 
         Args:
             q_in (asyncio.Queue):
-                A queue of validated follower ids; used to fetch followings of followers.
+                A queue of valid follower ids; used to fetch followings of followers.
 
             max_total_followings (int):
                 Upper limit on the total followings for a given uid; avoids collecting 'followings' when a uid is
@@ -118,8 +118,8 @@ class FollowNetPipeline:
 
         print(f'  * Total Skipped: {self.num_skipped:>4}')
         print(f'  *    Total Kept: {self.num_collected:>4}')
-        # Remove *this* streamer_id from counter
-        self.followings_counter.pop(self.streamer.streamer_id, None)
+        # Remove *this* uid from counter
+        self.followings_counter.pop(self.streamer.uid, None)
 
 
         await self.update_live_streams()
@@ -144,8 +144,8 @@ async def run_format(some_name, sample_sz, n_consumers):
     print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={streamer.sample_sz} >>>>>{Col.end}')
     t = perf_counter()
 
-    # follower_ids = await folnet.produce_follower_samples(print_status=True)
-    # print(f'Follower ID List:\n {follower_ids}')
+    # sanitized_follower_ids = await folnet.produce_follower_samples(print_status=True)
+    # print(f'Follower ID List:\n {sanitized_follower_ids}')
 
     await folnet.run_queue()
     # print(folnet.followings_counter)
