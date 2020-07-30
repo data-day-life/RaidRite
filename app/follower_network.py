@@ -10,7 +10,7 @@ module_logger = logging.getLogger('follower_network.py')
 
 
 class FollowNet:
-    MIN_MUTUAL = 2
+    MIN_MUTUAL = 3
     MAX_FOLLOWINGS = 150
     BATCH_SZ = 100
 
@@ -27,11 +27,11 @@ class FollowNet:
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
         result += f'{Col.green} > Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
-        result += f'     {self.followings_counter}\n'
+        # result += f'     {self.followings_counter}\n'
         result += f'{Col.green} > Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
-        result += f'     {self.mutual_followings}\n'
+        # result += f'     {self.mutual_followings}\n'
         result += f'{Col.green} > Batch History (sz={len(self.batch_history)}){Col.end}\n'
-        result += f'     {self.batch_history}\n'
+        # result += f'     {self.batch_history}\n'
 
         return result
 
@@ -47,7 +47,7 @@ class FollowNet:
         return {uid for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
 
 
-    async def consume_follower_samples(self, tc: TwitchClient, q_in, q_out=None) -> None:
+    async def produce_followed_ids(self, tc: TwitchClient, q_in, q_out=None) -> None:
         """
         Fetches a follower id from the queue and collects a list of uids that they are following provided that they
         are not following more than max_total_followings.
@@ -114,9 +114,9 @@ class FollowNet:
         q_foll_ids = asyncio.Queue()
 
         # Initialize producers and consumers for processing
-        producer = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
+        producer = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
         consumers = [asyncio.create_task(
-            self.consume_follower_samples(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
+            self.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
         # Block until producer and consumers are exhausted
         await asyncio.gather(producer)
         await q_foll_ids.join()
@@ -143,10 +143,10 @@ async def main():
         print(streamer)
         print(folnet)
 
-    print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
-    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-    from datetime import datetime
-    print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
+        print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
+        print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
+        from datetime import datetime
+        print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
 
 if __name__ == "__main__":

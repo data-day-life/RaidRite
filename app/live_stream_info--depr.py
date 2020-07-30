@@ -72,7 +72,7 @@ class LiveStreamInfo:
 async def run_queue(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
     q_followers = asyncio.Queue()
     q_followings = asyncio.Queue()
-    await streamer.produce_follower_samples(tc, q_out=q_followers)
+    await streamer.produce_follower_ids(tc, q_out=q_followers)
 
     consume_followings = [asyncio.create_task(
         folnet.consume_follower_samples(q_in=q_followers, q_out=q_followings)) for _ in range(n_consumers)]

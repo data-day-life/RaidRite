@@ -42,7 +42,7 @@ class Streamer:
             print(err)
 
         if q_out:
-            await self.produce_follower_samples(tc, q_out)
+            await self.produce_follower_ids(tc, q_out)
 
 
     def validate(self):
@@ -56,7 +56,7 @@ class Streamer:
         return self.valid
 
 
-    async def produce_follower_samples(self, tc: TwitchClient, q_out: asyncio.Queue = None):
+    async def produce_follower_ids(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         """
         For a valid uid, collect a list of sanitized_follower_ids while removing follower bots.  Batches of
         sanitized uids are placed into a given queue.
@@ -116,7 +116,7 @@ async def main():
     streamer = Streamer(name=some_name, sample_sz=sample_sz)
     async with TwitchClient() as tc:
         await streamer(tc)
-        # await streamer.produce_follower_samples(tc)
+        await streamer.produce_follower_ids(tc)
 
     print(streamer)
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')

@@ -103,7 +103,7 @@ class FollowNetPipeline:
 
         # Create tasks for pipeline
         await self.streamer.initialize()
-        followers = asyncio.create_task(self.streamer.produce_follower_samples(q_followings, print_status=True))
+        followers = asyncio.create_task(self.streamer.produce_follower_ids(q_followings, print_status=True))
         followings = [asyncio.create_task(self.consume_follower_samples(q_followings, q_live_status)) for _ in range(self.n_consumers)]
         live_status = 'TODO:  FILL THIS WITH A TASK'
 
