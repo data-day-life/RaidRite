@@ -1,7 +1,8 @@
 /app/settings.py
 /misc/
 /logs/
-.idea/
+/.idea/
+/.vscode/
 /venv/
 !/venv/Lib/site-packages/twitchio/*
 *.pyc
