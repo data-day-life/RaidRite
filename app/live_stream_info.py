@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 import asyncio
 from app.twitch_client_v2 import TwitchClient
 from app.streamer import Streamer
@@ -13,14 +12,17 @@ class LiveStreamInfo:
         self.live_streams = list()
         self.uid_totals = dict()
         self.num_live_stream_calls_to_twitch = 0
+        self.fetched_batches = list()
 
 
     def __str__(self, result='\n'):
         result += f'{Col.orange}<<<<< Live Stream Info {Col.end}\n'
         result += f'{Col.white}  * Calls to Twitch: {self.num_live_stream_calls_to_twitch}{Col.end}\n'
+        result += f'{Col.orange} > Total Fetched Batches (sz={len(self.fetched_batches)}):{Col.end}\n'
+        result += f'     {self.fetched_batches}\n'
         result += f'{Col.orange} > Live Streams (sz={len(self.live_streams)}):{Col.end}\n'
         result += f'     {self.live_streams}\n'
-        result += f'{Col.orange} > Total Followers, Live Streams (sz={len(self.uid_totals)}):{Col.end}\n'
+        result += f'{Col.orange} > Tot. Followers, Live Streams (sz={len(self.uid_totals)}):{Col.end}\n'
         result += f'     {self.uid_totals}\n'
 
         return result
@@ -39,20 +41,19 @@ class LiveStreamInfo:
     async def produce_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
         while True:
             candidate_batch = await q_in.get()
+            self.fetched_batches.extend(candidate_batch)
+            # TODO: May not need this any more ?
             # Flatten if first item is list
-            if isinstance(candidate_batch[0], list):
-                found_live_streams = []
-                for batch in candidate_batch:
-                    found_live_streams.extend(await self.fetch_live_streams(tc, batch, filter_lang=True, lang='en'))
-                #
-                # found_live_streams = [
-                #     await self.fetch_live_streams(tc, batch, filter_lang=True, lang='en') for batch in candidate_batch
-                # ]
-                # self.live_streams.extend([batch for batch in found_live_streams])
-            else:
-                found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
-
+            # if isinstance(candidate_batch[0], list):
+            #     found_live_streams = []
+            #     for batch in candidate_batch:
+            #         found_live_streams.extend(await self.fetch_live_streams(tc, batch, filter_lang=True, lang='en'))
+            #
+            # else:
+            #     found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
+            found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
             self.live_streams.extend(found_live_streams)
+
             if q_out:
                 [q_out.put_nowait(stream.get('user_id', None)) for stream in found_live_streams]
             q_in.task_done()
@@ -114,46 +115,6 @@ class LiveStreamInfo:
 
 
         await tc.close()
-
-
-
-
-    # TODO: adjust/account for remaining batch of folnet -- use folnet's call method?
-    # async def run(self, tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
-    #     q_foll_ids = asyncio.Queue()
-    #     q_followings = asyncio.Queue()
-    #     q_live_uids = asyncio.Queue()
-    #
-    #     # Initialize producers and consumers for processing
-    #     t_foll_ids = asyncio.create_task(streamer.produce_follower_samples(tc, q_out=q_foll_ids))
-    #     t_followings = [asyncio.create_task(
-    #         folnet.consume_follower_samples(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
-    #     t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
-    #     t_total_folls = asyncio.create_task(self.consume_live_streams(tc, q_in=q_live_uids))
-    #
-    #     # Block until producer and consumers are exhausted
-    #     await asyncio.gather(t_foll_ids)
-    #     await q_foll_ids.join()
-    #     await q_followings.join()
-    #     await q_live_uids.join()
-    #
-    #     # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
-    #     for task in t_followings:
-    #         task.cancel()
-    #     t_livestreams.cancel()
-    #     t_total_folls.cancel()
-
-
-# async def run_format(some_name, sample_sz, n_consumers):
-#     async with TwitchClient() as tc:
-#         streamer = Streamer(name=some_name, sample_sz=sample_sz)
-#         folnet = FollowNet(streamer_id=streamer.uid)
-#         ls = LiveStreamInfo()
-#         await ls.run(tc, streamer, folnet, n_consumers)
-#
-#     print(streamer)
-#     print(folnet)
-#     print(ls)
 
 
 async def main():
