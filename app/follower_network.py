@@ -27,11 +27,11 @@ class FollowNet:
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
         result += f'{Col.green} > Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
-        # result += f'     {self.followings_counter}\n'
+        result += f'     {self.followings_counter}\n'
         result += f'{Col.green} > Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
-        # result += f'     {self.mutual_followings}\n'
+        result += f'     {self.mutual_followings}\n'
         result += f'{Col.green} > Batch History (sz={len(self.batch_history)}){Col.end}\n'
-        # result += f'     {self.batch_history}\n'
+        result += f'     {self.batch_history}\n'
 
         return result
 
@@ -114,15 +114,15 @@ class FollowNet:
         q_foll_ids = asyncio.Queue()
 
         # Initialize producers and consumers for processing
-        producer = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
-        consumers = [asyncio.create_task(
+        t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+        t_followings = [asyncio.create_task(
             self.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
         # Block until producer and consumers are exhausted
-        await asyncio.gather(producer)
+        await asyncio.gather(t_prod)
         await q_foll_ids.join()
         # Cancel exhausted and idling consumers that are still waiting for items to appear in queue
-        for c in consumers:
-            c.cancel()
+        for t in t_followings:
+            t.cancel()
 
         # Process any remaining batches
         remaining_batches = self.new_candidate_batches(remainder=True)
