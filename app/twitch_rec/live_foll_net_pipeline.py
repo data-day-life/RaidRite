@@ -139,7 +139,7 @@ async def run_format(some_name, sample_sz, n_consumers):
     streamer = Streamer(some_name, sample_sz)
     folnet = FollowNetPipeline(tc, streamer, n_cons=n_consumers)
 
-    from app.colors import Col
+    from app.twitch_rec.colors import Col
     print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={streamer.sample_sz} >>>>>{Col.end}')
     t = perf_counter()
 
