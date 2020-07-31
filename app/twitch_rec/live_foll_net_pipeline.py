@@ -1,9 +1,8 @@
 import asyncio
 from collections import Counter
 from time import perf_counter
-from app.twitch_client_v2 import TwitchClient
-from app.bot_detection import BotDetector
-from app.streamer import Streamer
+from app.twitch_rec.twitch_client_v2 import TwitchClient
+from app.twitch_rec.streamer import Streamer
 
 # TODO: Final Result:
 #   1. Gets followers for uid

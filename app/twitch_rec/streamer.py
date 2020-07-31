@@ -1,8 +1,8 @@
 import asyncio
-from app.twitch_client_v2 import TwitchClient
-from app.bot_detection import BotDetector
+from app.twitch_rec.twitch_client_v2 import TwitchClient
+from app.twitch_rec.bot_detection import BotDetector
 from time import perf_counter
-from app.colors import Col
+from app.twitch_rec.colors import Col
 
 
 class Streamer:
