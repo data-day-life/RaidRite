@@ -4,7 +4,7 @@ from operator import itemgetter
 class Similarity:
 
     @staticmethod
-    def ranked_sim_scores(sim_scores: dict, n_best=10):
+    def ranked_sim_scores(sim_scores: dict, n_best: int = 10):
         if n_best > len(sim_scores):
             n_best = len(sim_scores)
 
@@ -23,7 +23,7 @@ class Similarity:
 
 
     @staticmethod
-    def sim(uid_mutual_count, live_uid_total_followers, sum_mutual_followings):
+    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int):
         raise NotImplementedError
 
 
@@ -31,7 +31,7 @@ class Similarity:
 class SorensenDiceSim(Similarity):
 
     @staticmethod
-    def sim(uid_mutual_count, live_uid_total_followers, sum_mutual_followings):
+    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int):
         result = -1
         if live_uid_total_followers + sum_mutual_followings != 0:
             result = (2 * uid_mutual_count) / (live_uid_total_followers + sum_mutual_followings)
@@ -42,7 +42,7 @@ class SorensenDiceSim(Similarity):
 class JaccardSim(Similarity):
 
     @staticmethod
-    def sim(uid_mutual_count, live_uid_total_followers, sum_mutual_followings):
+    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int):
         result = -1
         if live_uid_total_followers + uid_mutual_count != 0:
             result = uid_mutual_count / (sum_mutual_followings + live_uid_total_followers - uid_mutual_count)
