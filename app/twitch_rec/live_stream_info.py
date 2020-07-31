@@ -15,7 +15,7 @@ class LiveStreamInfo:
         self.fetched_batches = list()
 
 
-    def __str__(self, result='\n'):
+    def __str__(self, result=''):
         result += f'{Col.orange}<<<<< Live Stream Info {Col.end}\n'
         result += f'{Col.white}  * Calls to Twitch: {self.num_live_stream_calls_to_twitch}{Col.end}\n'
         result += f'{Col.orange} > Total Fetched Batches (sz={len(self.fetched_batches)}):{Col.end}\n'

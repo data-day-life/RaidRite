@@ -26,7 +26,7 @@ class Streamer:
         result += f'{Col.white}  * Total followers: {self.total_followers}{Col.end}\n'
         result += f'{Col.white}  * {str(self.bd)}{Col.end}\n'
         result += f'{Col.yellow} > Follower ID List (sz={len(self.sanitized_follower_ids)}):{Col.end}\n'
-        result += f'  {self.sanitized_follower_ids}'
+        result += f'  {self.sanitized_follower_ids}\n'
 
         return result
 

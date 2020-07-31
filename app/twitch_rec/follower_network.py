@@ -22,7 +22,7 @@ class FollowNet:
         self.batch_history = set()
 
 
-    def __str__(self, result='\n'):
+    def __str__(self, result=''):
         result += f'{Col.green}<<<<< Follower Network {Col.end}\n'
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
