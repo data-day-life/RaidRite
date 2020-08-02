@@ -43,8 +43,8 @@ class FollowNet:
 
 
     @property
-    def mutual_followings(self) -> set:
-        return {uid for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
+    def mutual_followings(self) -> dict:
+        return {uid: count for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
 
 
     async def produce_followed_ids(self, tc: TwitchClient, q_in, q_out=None) -> None:
@@ -90,7 +90,7 @@ class FollowNet:
 
 
     def new_candidate_batches(self, remainder=False):
-        new_candidates = self.mutual_followings - self.batch_history
+        new_candidates = self.mutual_followings.keys() - self.batch_history
         batches = self.batchify(list(new_candidates), remainder)
         flat_candidates = batches
         if remainder and batches and isinstance(batches[0], list):
