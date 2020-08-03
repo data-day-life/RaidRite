@@ -57,22 +57,12 @@ class LiveStreamInfo:
         while True:
             candidate_batch = await q_in.get()
             self.fetched_batches.extend(candidate_batch)
-            # TODO: May not need this any more ?
-            # Flatten if first item is list
-            # if isinstance(candidate_batch[0], list):
-            #     found_live_streams = []
-            #     for batch in candidate_batch:
-            #         found_live_streams.extend(await self.fetch_live_streams(tc, batch, filter_lang=True, lang='en'))
-            #
-            # else:
-            #     found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
             found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
             self.live_streams.extend(found_live_streams)
 
             if q_out:
                 [q_out.put_nowait(stream.get('user_id', None)) for stream in found_live_streams]
             q_in.task_done()
-
 
 
     async def consume_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
