@@ -1,178 +1,72 @@
 import asyncio
-from collections import Counter
-from time import perf_counter
 from app.twitch_rec.twitch_client_v2 import TwitchClient
 from app.twitch_rec.streamer import Streamer
+from app.twitch_rec.follower_network import FollowNet
+from app.twitch_rec.live_stream_info import LiveStreamInfo
 
-# TODO: Final Result:
-#   1. Gets followers for uid
-#   2. Gets followings of followers
-#   3. Gets live stream info for mutual followings
-#   thought process here is to check 100 new live streams for occurence of 2 mutual followings and check finally
-#  after collecting all followings
 
 class FollowNetPipeline:
-    MAX_BATCH_SZ = 100
 
-    def __init__(self, tc: TwitchClient, streamer: Streamer, n_cons: int = 100):
-        self.tc = tc
-        self.streamer = streamer
-        self.n_consumers = n_cons
-        self.followings_counter = Counter()
-        self.num_collected = 0
-        self.num_skipped = 0
-        self.checked_live_uids = set()
-        self.unchecked_live_uids = set()
-        self.live_streams = []
-        self.num_live_stream_calls_to_twitch = 0
+    def __init__(self, streamer_name, sample_sz=300, max_followings=150, min_mutual=3):
+        self.sample_sz = sample_sz
+        self.max_followings = max_followings
+        self.min_mutual = min_mutual
+        self.streamer = Streamer(streamer_name, sample_sz=sample_sz)
+        self.folnet = FollowNet(self.streamer.uid, max_followings, min_mutual)
+        self.live_streams = LiveStreamInfo()
 
 
-
-    async def consume_follower_samples(self, q_in, q_out, max_total_followings=150) -> None:
-        """
-        Fetches a follower id from the queue and collects a list of uids that they are following provided that they
-        are not following more than max_followings.
-
-        Args:
-            q_in (asyncio.Queue):
-                A queue of valid follower ids; used to fetch followings of followers.
-
-            max_total_followings (int):
-                Upper limit on the total followings for a given uid; avoids collecting 'followings' when a uid is
-                following a large (bot-like) number of accounts.
-        """
-
-        while True:
-            follower_id = await q_in.get()
-            following_reply = await self.tc.get_full_n_followings(follower_id)
-            if following_reply.get('total') < max_total_followings:
-                foll_data = following_reply.get('data')
-                self.followings_counter.update([following.get('to_id') for following in foll_data])
-                self.num_collected += 1
-
-                await self.check_live()
-
-
-            else:
-                # print(f'* Skipped: (uid: {follower_id:>9} | tot: {following_reply.get("total"):>4}) ')
-                self.num_skipped += 1
-
-            q_in.task_done()
-
-
-
-
-    async def check_live(self, q_in: asyncio.Queue, min_mutual=2):
-        while True:
-            mutual_followings = q_in.get()
-
-            mutual_followings = {uid for uid, count in self.followings_counter.items() if count >= min_mutual}
-            if mutual_followings and len(mutual_followings) >= self.MAX_BATCH_SZ:
-                self.unchecked_live_uids = mutual_followings - self.checked_live_uids
-                # TODO: maybe use 'try' and 'finally' here instead?
-
-                if len(self.unchecked_live_uids) >= self.MAX_BATCH_SZ:
-                    await self.update_live_streams()
-                # Get remaining candidates after all batches of 100 were collected (unchecked + checked == mutual)
-                # elif self.checked_live_uids:
-                #     if self.unchecked_live_uids.union(self.checked_live_uids) == mutual_followings:
-                #         print(f'Length of unchecked uids: {len(self.unchecked_live_uids)}')
-                #         await self.update_checked_live_streams(self.unchecked_live_uids)
-
-            q_in.task_done()
-
-
-    async def update_live_streams(self):
-        batch_sz = self.MAX_BATCH_SZ
-        if len(self.unchecked_live_uids) < batch_sz:
-            batch_sz = len(self.unchecked_live_uids)
-        candidates = [self.unchecked_live_uids.pop() for _ in range(0, batch_sz)]
-
-        self.checked_live_uids.update(candidates)
-        live_candidates = await self.tc.get_streams(channels=candidates)
-        self.num_live_stream_calls_to_twitch += 1
-        self.live_streams.extend(live_candidates)
-
-
-
-    async def run_queue(self):
-        # Create queues for pipeline
+    async def __call__(self, tc: TwitchClient, n_consumers):
+        q_foll_ids = asyncio.Queue()
         q_followings = asyncio.Queue()
-        q_live_status = asyncio.Queue()
+        q_live_uids = asyncio.Queue()
 
-        # Create tasks for pipeline
-        await self.streamer.initialize()
-        followers = asyncio.create_task(self.streamer.produce_follower_ids(q_followings, print_status=True))
-        followings = [asyncio.create_task(self.consume_follower_samples(q_followings, q_live_status)) for _ in range(self.n_consumers)]
-        live_status = 'TODO:  FILL THIS WITH A TASK'
 
-        # Start the task pipeline
-        await followers
+        t_prod = asyncio.create_task(self.streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+        t_followings = [asyncio.create_task(
+            self.folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
+        t_livestreams = asyncio.create_task(
+            self.live_streams.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
+        t_total = [asyncio.create_task(
+            self.live_streams.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers // 2)]
+
+        # Streamer: follower ids
+        await asyncio.gather(t_prod)
+
+        # Folnet: follower's followings
+        await q_foll_ids.join()
+        [q_followings.put_nowait(batch) for batch in self.folnet.new_candidate_batches(remainder=True)]
+        [t.cancel() for t in t_followings]
+
+        # LiveStreams
         await q_followings.join()
-        await q_live_status.join()
+        t_livestreams.cancel()
 
-        # End all task queues
-        for consumer in followings:
-            consumer.cancel()
-
-        print(f'  * Total Skipped: {self.num_skipped:>4}')
-        print(f'  *    Total Kept: {self.num_collected:>4}')
-        # Remove *this* uid from counter
-        self.followings_counter.pop(self.streamer.uid, None)
-
-
-        await self.update_live_streams()
-        return self.followings_counter
+        await q_live_uids.join()
+        [t.cancel() for t in t_total]
 
 
 async def main():
-    some_name = 'emilybarkiss'
-    sample_sz = 300
-    n_consumers = 100
-    n_consumers = 2
-    await run_format(some_name, sample_sz, n_consumers)
-
-
-
-async def run_format(some_name, sample_sz, n_consumers):
-    tc = TwitchClient()
-    streamer = Streamer(some_name, sample_sz)
-    folnet = FollowNetPipeline(tc, streamer, n_cons=n_consumers)
-
     from app.twitch_rec.colors import Col
-    print(f'{Col.bold}{Col.yellow}\t<<<<< {some_name}  |  n={streamer.sample_sz} >>>>>{Col.end}')
+    from datetime import datetime
+    from time import perf_counter
     t = perf_counter()
 
-    # sanitized_follower_ids = await folnet.produce_follower_samples(print_status=True)
-    # print(f'Follower ID List:\n {sanitized_follower_ids}')
+    some_name = 'emilybarkiss'
+    sample_sz = 350
+    n_consumers = 100
 
-    await folnet.run_queue()
-    # print(folnet.followings_counter)
-    # print(f'Counter length: {len(folnet.followings_counter)}')
+    pipe = FollowNetPipeline(some_name, sample_sz)
+    async with TwitchClient() as tc:
+        await pipe(tc, n_consumers)
 
+    print(pipe.streamer)
+    print(pipe.folnet)
+    print(pipe.live_streams)
+
+    print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
-    print(f'\t{Col.magenta}N consumers: {n_consumers}\n')
-
-    print(f'{Col.green}Suggestions (sz={len(folnet.followings_counter)}){Col.end}')
-    print(folnet.followings_counter)
-
-    print(f'{Col.green}Live Stream Suggestions (sz={len(folnet.live_streams)}){Col.end}')
-    print(folnet.live_streams)
-
-    print(f'{Col.green}Num Unchecked for live status: (sz={len(folnet.unchecked_live_uids)}){Col.end}')
-    print(folnet.live_streams)
-
-    # trimmed_suggs = {uid: count for uid, count in folnet.followings_counter.items() if count >= 2}
-    # print(f'{Col.yellow}Trimmed Suggestions (sz={len(trimmed_suggs)}){Col.end}')
-    # print(trimmed_suggs)
-    #
-    # mutual =  {uid for uid, count in folnet.followings_counter.items() if count >= 2}
-    # print(f'mutual: {mutual}')
-    # print(f'len(mutual): {len(mutual)}')
-
-
-    await folnet.tc.close()
-
+    print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
 if __name__ == "__main__":
     asyncio.run(main())
