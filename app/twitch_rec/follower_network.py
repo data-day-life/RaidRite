@@ -10,12 +10,12 @@ module_logger = logging.getLogger('follower_network.py')
 
 
 class FollowNet:
-    MIN_MUTUAL = 3
-    MAX_FOLLOWINGS = 150
     BATCH_SZ = 100
 
-    def __init__(self, streamer_id):
+    def __init__(self, streamer_id, max_followings=150, min_mutual=3):
         self.streamer_id = streamer_id
+        self.max_followings = max_followings
+        self.min_mutual = min_mutual
         self._followings_counter = Counter()
         self.num_collected = 0
         self.num_skipped = 0
@@ -44,7 +44,7 @@ class FollowNet:
 
     @property
     def mutual_followings(self) -> dict:
-        return {uid: count for uid, count in self.followings_counter.items() if count >= self.MIN_MUTUAL}
+        return {uid: count for uid, count in self.followings_counter.items() if count >= self.min_mutual}
 
 
     async def produce_followed_ids(self, tc: TwitchClient, q_in, q_out=None) -> None:
@@ -76,7 +76,7 @@ class FollowNet:
 
     def update_followings(self, following_reply, all_batches=False):
         if following_reply:
-            if following_reply.get('total') <= self.MAX_FOLLOWINGS:
+            if following_reply.get('total') <= self.max_followings:
                 foll_data = following_reply.get('data')
                 self.followings_counter.update([following.get('to_id') for following in foll_data])
                 self.num_collected += 1
