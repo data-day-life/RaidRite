@@ -11,6 +11,7 @@ class LiveStreamInfo:
     def __init__(self):
         self.live_streams = list()
         self.uid_totals = dict()
+        self.fetched_batches = list()
         self.num_live_stream_calls_to_twitch = 0
         self.fetched_batches = list()
 
