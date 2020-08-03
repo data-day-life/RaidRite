@@ -1,7 +1,6 @@
 import asyncio
 from app.twitch_rec.twitch_client_v2 import TwitchClient
 from app.twitch_rec.bot_detection import BotDetector
-from time import perf_counter
 from app.twitch_rec.colors import Col
 
 
@@ -109,7 +108,9 @@ class Streamer:
 
 
 async def main():
+    from time import perf_counter
     t = perf_counter()
+
     some_name = 'emilybarkiss'
     sample_sz = 300
 
