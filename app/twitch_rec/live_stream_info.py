@@ -163,12 +163,9 @@ class LiveStreamInfo:
         # LiveStreams
         await q_followings.join()
         t_livestreams.cancel()
-        # print(self)
 
         await q_live_uids.join()
         [t.cancel() for t in t_total]
-
-        print(self)
 
 
 
