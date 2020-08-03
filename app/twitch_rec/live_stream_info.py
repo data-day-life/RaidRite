@@ -1,5 +1,5 @@
 import asyncio
-from app.twitch_rec.twitch_client_v2 import TwitchClient
+from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
 from time import perf_counter
@@ -13,7 +13,6 @@ class LiveStreamInfo:
         self.uid_totals = dict()
         self.fetched_batches = list()
         self.num_live_stream_calls_to_twitch = 0
-        self.fetched_batches = list()
 
 
     def __str__(self, result=''):
@@ -69,6 +68,7 @@ class LiveStreamInfo:
         while True:
             live_streamer_uid = await q_in.get()
             total_followers = await tc.get_total_followers(int(live_streamer_uid))
+            # TODO: Keep uids+totals separate from live stream uid info or update ls uid info with total?
             # self.live_streams.get(live_streamer_uid).update({'total': total_followers})
             self.uid_totals[live_streamer_uid] = total_followers
 
@@ -170,7 +170,7 @@ async def main():
         streamer = Streamer(name=some_name, sample_sz=sample_sz)
         folnet = FollowNet(streamer_id=streamer.uid)
         ls = LiveStreamInfo()
-        await ls.run_v2(tc, streamer, folnet, n_consumers)
+        await ls.run_v1(tc, streamer, folnet, n_consumers)
 
         print(streamer)
         print(folnet)

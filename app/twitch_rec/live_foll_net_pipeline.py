@@ -1,5 +1,5 @@
 import asyncio
-from app.twitch_rec.twitch_client_v2 import TwitchClient
+from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
 from app.twitch_rec.live_stream_info import LiveStreamInfo
