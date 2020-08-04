@@ -4,22 +4,24 @@ from time import perf_counter
 from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.colors import Col
-import logging
-
-module_logger = logging.getLogger('follower_network.py')
+from typing import Set
 
 
 class FollowNet:
-    BATCH_SZ = 100
+    BATCH_SZ:       int = 100
+    num_collected:  int = 0
+    num_skipped:    int = 0
+    batch_history:  Set[str] = set()
+    steamer_id:     str
+    max_followings: int
+    min_mutual:     int
 
-    def __init__(self, streamer_id, max_followings=150, min_mutual=3):
+
+    def __init__(self, streamer_id: str, max_followings: int = 150, min_mutual: int = 3) -> None:
         self.streamer_id = streamer_id
         self.max_followings = max_followings
         self.min_mutual = min_mutual
         self._followings_counter = Counter()
-        self.num_collected = 0
-        self.num_skipped = 0
-        self.batch_history = set()
 
 
     def __str__(self, result=''):

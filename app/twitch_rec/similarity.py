@@ -1,13 +1,15 @@
 from operator import itemgetter
-from collections import namedtuple
+from typing import NamedTuple, Dict
 
 
-SimData = namedtuple('SimData', 'mutual_following_counts, live_uid_tot_followers')
+class SimData(NamedTuple):
+    mutual_following_counts: Dict[str, int]
+    live_uid_tot_followers:  Dict[str, int]
 
 
 class SimilarityScore:
 
-    def __init__(self, sim_data: SimData, n_best=10):
+    def __init__(self, sim_data: SimData, n_best: int = 10) -> None:
         self.sim_data = sim_data
         self.n_best = n_best
 
@@ -51,7 +53,7 @@ class SimilarityScore:
 class SorensenDiceSim(SimilarityScore):
 
     @staticmethod
-    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int):
+    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int) -> float:
         result = -1
         if live_uid_total_followers + sum_mutual_followings != 0:
             result = (2 * uid_mutual_count) / (live_uid_total_followers + sum_mutual_followings)
@@ -64,7 +66,7 @@ class SorensenDiceSim(SimilarityScore):
 class JaccardSim(SimilarityScore):
 
     @staticmethod
-    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int):
+    def sim(uid_mutual_count: int, live_uid_total_followers: int, sum_mutual_followings: int) -> float:
         result = -1
         if live_uid_total_followers + uid_mutual_count != 0:
             result = uid_mutual_count / (sum_mutual_followings + live_uid_total_followers - uid_mutual_count)

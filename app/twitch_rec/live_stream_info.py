@@ -1,16 +1,16 @@
 import asyncio
+from time import perf_counter
+from typing import List, Dict
 from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
-from time import perf_counter
 from app.twitch_rec.colors import Col
-from typing import List, Dict
 
 
 class LiveStreamInfo:
-    live_streams:       List[Dict[str, str]] = []
-    uid_totals:         Dict[str, str] = {}
-    fetched_batches:    List[str] = []
+    live_streams:       List[Dict[str, str]] = list()
+    uid_totals:         Dict[str, str] = dict()
+    fetched_batches:    List[str] = list()
     num_ls_reqs:        int = 0
 
     def __init__(self) -> None:

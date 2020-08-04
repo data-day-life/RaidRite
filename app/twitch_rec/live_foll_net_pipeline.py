@@ -6,8 +6,11 @@ from app.twitch_rec.live_stream_info import LiveStreamInfo
 
 
 class FollowNetPipeline:
+    sample_sz:      int
+    max_followings: int
+    min_mutual:     int
 
-    def __init__(self, streamer_name, sample_sz=300, max_followings=150, min_mutual=3):
+    def __init__(self, streamer_name: str, sample_sz: int = 300, max_followings: int = 150, min_mutual: int = 3) -> None:
         self.sample_sz = sample_sz
         self.max_followings = max_followings
         self.min_mutual = min_mutual
@@ -16,7 +19,7 @@ class FollowNetPipeline:
         self.live_streams = LiveStreamInfo()
 
 
-    async def __call__(self, tc: TwitchClient, n_consumers):
+    async def __call__(self, tc: TwitchClient, n_consumers: int):
         q_foll_ids = asyncio.Queue()
         q_followings = asyncio.Queue()
         q_live_uids = asyncio.Queue()
@@ -67,6 +70,7 @@ async def main():
     print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
     print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
     print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
+
 
 if __name__ == "__main__":
     asyncio.run(main())
