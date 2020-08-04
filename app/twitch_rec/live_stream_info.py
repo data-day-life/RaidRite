@@ -4,20 +4,22 @@ from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
 from time import perf_counter
 from app.twitch_rec.colors import Col
+from typing import List, Dict
 
 
 class LiveStreamInfo:
+    live_streams:       List[Dict[str, str]] = []
+    uid_totals:         Dict[str, str] = {}
+    fetched_batches:    List[str] = []
+    num_ls_reqs:        int = 0
 
-    def __init__(self):
-        self.live_streams = list()
-        self.uid_totals = dict()
-        self.fetched_batches = list()
-        self.num_live_stream_calls_to_twitch = 0
+    def __init__(self) -> None:
+        pass
 
 
     def __str__(self, result=''):
         result += f'{Col.orange}<<<<< Live Stream Info {Col.end}\n'
-        result += f'{Col.white}  * Calls to Twitch: {self.num_live_stream_calls_to_twitch}{Col.end}\n'
+        result += f'{Col.white}  * Calls to Twitch: {self.num_ls_reqs}{Col.end}\n'
         result += f'{Col.orange} > Total Fetched Batches (sz={len(self.fetched_batches)}):{Col.end}\n'
         result += f'     {self.fetched_batches}\n'
         result += f'{Col.orange} > Live Streams (sz={len(self.live_streams)}):{Col.end}\n'
@@ -81,7 +83,7 @@ class LiveStreamInfo:
         live_candidates = await tc.get_streams(channels=candidates)
         if filter_lang:
             live_candidates = self.filter_language(live_candidates, lang=lang)
-        self.num_live_stream_calls_to_twitch += 1
+        self.num_ls_reqs += 1
 
         return live_candidates
 
