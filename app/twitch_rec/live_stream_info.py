@@ -86,76 +86,75 @@ class LiveStreamInfo:
         return live_candidates
 
 
-    async def run_v2(self, tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
-        print('\n\n********** Run V2 ********** ')
-        q_foll_ids = asyncio.Queue()
-        q_followings = asyncio.Queue()
-        q_live_uids = asyncio.Queue()
 
-        t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
-        t_followings = [asyncio.create_task(
-            folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
-        # t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
-        # t_total = [asyncio.create_task(
-        #     self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers//2)]
+async def run_v2(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
+    print('\n\n********** Run V2 ********** ')
+    q_foll_ids = asyncio.Queue()
+    q_followings = asyncio.Queue()
+    q_live_uids = asyncio.Queue()
 
-        # Streamer: follower ids
-        await asyncio.gather(t_prod)
-        print(streamer)
+    t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+    t_followings = [asyncio.create_task(
+        folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
+    # t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
+    # t_total = [asyncio.create_task(
+    #     self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers//2)]
 
-        # Folnet: follower's followings
-        await q_foll_ids.join()
+    # Streamer: follower ids
+    await asyncio.gather(t_prod)
+    print(streamer)
 
-        # task creation must follow q_foll_ids.join() b/c the join produces q_followings
-        t_ls = asyncio.create_task(self.__call__(tc, q_in_followings=q_followings, n_cons=n_consumers//2))
-        [q_followings.put_nowait(batch) for batch in folnet.new_candidate_batches(remainder=True)]
-        [t.cancel() for t in t_followings]
-        print(folnet)
+    # Folnet: follower's followings
+    await q_foll_ids.join()
 
-        # LiveStreams
-        await q_followings.join()
-        # print(self)
+    # task creation must follow q_foll_ids.join() b/c the join produces q_followings
+    t_ls = asyncio.create_task(ls(tc, q_in_followings=q_followings, n_cons=n_consumers//2))
+    [q_followings.put_nowait(batch) for batch in folnet.new_candidate_batches(remainder=True)]
+    [t.cancel() for t in t_followings]
+    print(folnet)
 
-        await q_live_uids.join()
+    # LiveStreams
+    await q_followings.join()
+    # print(self)
 
-        # task creation must follow q_foll_ids.join() b/c the join produces q_followings
-        # t_ls = asyncio.create_task(self.__call__(tc, q_in_followings=q_followings))
-        await asyncio.gather(t_ls)
-        t_ls.cancel()
+    await q_live_uids.join()
 
-        print(self)
-
+    # task creation must follow q_foll_ids.join() b/c the join produces q_followings
+    # t_ls = asyncio.create_task(self.__call__(tc, q_in_followings=q_followings))
+    await asyncio.gather(t_ls)
+    t_ls.cancel()
 
 
-    async def run_v1(self, tc: TwitchClient, streamer: Streamer, folnet: FollowNet, n_consumers=50):
-        print('\n\n********** Run V1 ********** ')
-        q_foll_ids = asyncio.Queue()
-        q_followings = asyncio.Queue()
-        q_live_uids = asyncio.Queue()
 
-        t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
-        t_followings = [asyncio.create_task(
-            folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
-        t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
-        t_total = [asyncio.create_task(
-            self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers//2)]
+async def run_v1(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
+    print('\n\n********** Run V1 ********** ')
+    q_foll_ids = asyncio.Queue()
+    q_followings = asyncio.Queue()
+    q_live_uids = asyncio.Queue()
 
-        # Streamer: follower ids
-        await asyncio.gather(t_prod)
-        print(streamer)
+    t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+    t_followings = [asyncio.create_task(
+        folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
+    t_livestreams = asyncio.create_task(ls.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
+    t_total = [asyncio.create_task(
+        ls.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers//2)]
 
-        # Folnet: follower's followings
-        await q_foll_ids.join()
-        [q_followings.put_nowait(batch) for batch in folnet.new_candidate_batches(remainder=True)]
-        [t.cancel() for t in t_followings]
-        print(folnet)
+    # Streamer: follower ids
+    await asyncio.gather(t_prod)
+    # print(streamer)
 
-        # LiveStreams
-        await q_followings.join()
-        t_livestreams.cancel()
+    # Folnet: follower's followings
+    await q_foll_ids.join()
+    [q_followings.put_nowait(batch) for batch in folnet.new_candidate_batches(remainder=True)]
+    [t.cancel() for t in t_followings]
+    # print(folnet)
 
-        await q_live_uids.join()
-        [t.cancel() for t in t_total]
+    # LiveStreams
+    await q_followings.join()
+    t_livestreams.cancel()
+
+    await q_live_uids.join()
+    [t.cancel() for t in t_total]
 
 
 
@@ -170,7 +169,7 @@ async def main():
         streamer = Streamer(name=some_name, sample_sz=sample_sz)
         folnet = FollowNet(streamer_id=streamer.uid)
         ls = LiveStreamInfo()
-        await ls.run_v1(tc, streamer, folnet, n_consumers)
+        await run_v1(tc=tc, streamer=streamer, folnet=folnet, ls=ls, n_consumers=n_consumers)
 
         print(streamer)
         print(folnet)
