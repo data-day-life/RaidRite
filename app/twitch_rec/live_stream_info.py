@@ -1,6 +1,9 @@
 import asyncio
 from time import perf_counter
 from typing import List, Dict
+from dateutil.parser import parse as dt_parse
+from datetime import datetime as dt
+from pytz import utc
 from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
@@ -15,6 +18,11 @@ class LiveStreamInfo:
 
     def __init__(self) -> None:
         pass
+
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}('
+                f'{self.num_ls_reqs!r}, {self.fetched_batches!r}, {self.live_streams!r}, {self.uid_totals!r})')
 
 
     def __str__(self, result=''):
@@ -54,11 +62,23 @@ class LiveStreamInfo:
         return {stream.get('user_id'): stream for stream in live_stream_list}
 
 
+    @staticmethod
+    def parse_duration(twitch_time):
+        diff = (dt.now(utc) - dt_parse(twitch_time)).total_seconds()
+        return f'{int(diff // 3600)}hr {int((diff % 3600) // 60)}min'
+
+
+    def apply_stream_duration(self, livestreams):
+        [stream.update({'stream_duration': self.parse_duration(stream.get('started_at'))})
+            for stream in livestreams]
+
+
     async def produce_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
         while True:
             candidate_batch = await q_in.get()
             self.fetched_batches.extend(candidate_batch)
             found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
+            self.apply_stream_duration(found_live_streams)
             self.live_streams.extend(found_live_streams)
 
             if q_out:
