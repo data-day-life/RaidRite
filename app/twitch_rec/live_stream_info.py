@@ -79,10 +79,12 @@ class LiveStreamInfo:
             self.fetched_batches.extend(candidate_batch)
             found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
             self.apply_stream_duration(found_live_streams)
-            self.live_streams.extend(found_live_streams)
-
+            # foo = {}
+            # foo.update({{ls.get('user_id'): ls} for ls in found_live_streams})
+            # print(foo)
             if q_out:
                 [q_out.put_nowait(stream.get('user_id', None)) for stream in found_live_streams]
+            self.live_streams.extend(found_live_streams)
             q_in.task_done()
 
 
@@ -99,13 +101,7 @@ class LiveStreamInfo:
             q_in.task_done()
 
 
-    async def fetch_live_streams(self, tc: TwitchClient, candidates, filter_lang=True, lang='en'):
-        live_candidates = await tc.get_streams(channels=candidates)
-        if filter_lang:
-            live_candidates = self.filter_language(live_candidates, lang=lang)
-        self.num_ls_reqs += 1
 
-        return live_candidates
 
 
 
