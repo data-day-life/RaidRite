@@ -1,5 +1,5 @@
 import asyncio
-from dateutil import parser
+from dateutil.parser import parse as dt_parse
 
 
 class BotDetector:
@@ -27,7 +27,7 @@ class BotDetector:
             A list of datetime objects that can be used to compare the difference in follow times between a sequence of
             followers.
         """
-        return [parser.parse(follower.get('followed_at', None)) for follower in foll_list]
+        return [dt_parse(follower.get('followed_at', None)) for follower in foll_list]
 
 
     def detect_follower_bot_uids(self, foll_list: list, print_status: bool = False) -> set:
