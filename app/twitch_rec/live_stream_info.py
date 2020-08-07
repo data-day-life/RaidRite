@@ -2,27 +2,77 @@ import asyncio
 from time import perf_counter
 from typing import List, Dict
 from dateutil.parser import parse as dt_parse
-from datetime import datetime as dt
+from datetime import datetime as datetime
 from pytz import utc
 from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import Streamer
 from app.twitch_rec.follower_network import FollowNet
 from app.twitch_rec.colors import Col
+from dataclasses import dataclass, field
+
+
+@dataclass
+class LiveStreams:
+    data:       Dict[str, Dict[str, str]] = field(default_factory=dict)
+    lang:       str = 'en'
+    init_time:  datetime = field(default=datetime.now(utc))
+
+
+    @staticmethod
+    def dictify_list(livestream_list: list) -> dict:
+        return {stream.get('user_id'): stream for stream in livestream_list if livestream_list}
+
+
+    @staticmethod
+    def list_apply_stream_duration(livestream_list: list, base_time: datetime) -> list:
+        [stream.update(LiveStreams.parse_duration(stream.get('started_at'), base_time))
+         for stream in livestream_list]
+        return livestream_list
+
+
+    @staticmethod
+    def parse_duration(twitch_time: str, base_time: datetime) -> dict:
+        diff = (base_time - dt_parse(twitch_time)).total_seconds()
+        result = {'stream_duration': f'{int(diff // 3600)}hr {int((diff % 3600) // 60)}min'}
+        return result
+
+
+    def list_filter_language(self, livestream_list: list, lang: str = None) -> list:
+        return [ls for ls in livestream_list if ls.get('language') == (lang or self.lang)]
+
+
+    def add_uid_tot_followers(self, uid: str, total_followers):
+        if self.data.get(uid, None):
+            self.data[uid].update({'total_followers': total_followers})
+
+
+    def update_from_list(self, livestream_list: list, initial_time=None):
+        base_time = initial_time or self.init_time
+        if livestream_list:
+            # livestream_list = self.list_filter_language(livestream_list)
+            livestream_list = LiveStreams.list_apply_stream_duration(livestream_list, base_time)
+            ls_dict = LiveStreams.dictify_list(livestream_list)
+            self.data.update(ls_dict)
+
+    def get(self, data_key) -> dict:
+        return self.data.get(data_key)
+
+
 
 
 class LiveStreamInfo:
-    live_streams:       List[Dict[str, str]] = list()
-    uid_totals:         Dict[str, str] = dict()
-    fetched_batches:    List[str] = list()
+    live_streams:       LiveStreams
+    fetched_batches:    List[str] = []
     num_ls_reqs:        int = 0
 
-    def __init__(self) -> None:
-        pass
+
+    def __init__(self, lang_filter: str = 'en') -> None:
+        self.live_streams = LiveStreams(lang=lang_filter)
 
 
     def __repr__(self):
         return (f'{self.__class__.__name__}('
-                f'{self.num_ls_reqs!r}, {self.fetched_batches!r}, {self.live_streams!r}, {self.uid_totals!r})')
+                f'{self.num_ls_reqs!r}, {self.fetched_batches!r}, {self.live_streams!r})')
 
 
     def __str__(self, result=''):
@@ -30,10 +80,11 @@ class LiveStreamInfo:
         result += f'{Col.white}  * Calls to Twitch: {self.num_ls_reqs}{Col.end}\n'
         result += f'{Col.orange} > Total Fetched Batches (sz={len(self.fetched_batches)}):{Col.end}\n'
         result += f'     {self.fetched_batches}\n'
-        result += f'{Col.orange} > Live Streams (sz={len(self.live_streams)}):{Col.end}\n'
+        result += f'{Col.orange} > Live Streams (sz={len(self.live_streams.data)}):{Col.end}\n'
         result += f'     {self.live_streams}\n'
-        result += f'{Col.orange} > Tot. Followers, Live Streams (sz={len(self.uid_totals)}):{Col.end}\n'
-        result += f'     {self.uid_totals}\n'
+        tot_followers = [{f'uid: {uid}': f'tot: {details.get("total_followers")}'} for uid, details in self.live_streams.data.items()]
+        result += f'{Col.orange} > Tot. Followers, Live Streams (sz={len(tot_followers)}):{Col.end}\n'
+        result += f'     {tot_followers}\n'
 
         return result
 
@@ -51,40 +102,21 @@ class LiveStreamInfo:
         [t.cancel() for t in t_total]
 
 
-
-    @staticmethod
-    def filter_language(live_streams, lang='en'):
-        return [ls for ls in live_streams if ls.get('language', None) == lang]
-
-
-    @staticmethod
-    def dictify(live_stream_list):
-        return {stream.get('user_id'): stream for stream in live_stream_list}
-
-
-    @staticmethod
-    def parse_duration(twitch_time):
-        diff = (dt.now(utc) - dt_parse(twitch_time)).total_seconds()
-        return f'{int(diff // 3600)}hr {int((diff % 3600) // 60)}min'
-
-
-    def apply_stream_duration(self, livestreams):
-        [stream.update({'stream_duration': self.parse_duration(stream.get('started_at'))})
-            for stream in livestreams]
+    async def fetch_live_streams(self, tc: TwitchClient, candidates) -> list:
+        self.num_ls_reqs += 1
+        return await tc.get_streams(channels=candidates)
 
 
     async def produce_live_streams(self, tc: TwitchClient, q_in: asyncio.Queue, q_out: asyncio.Queue = None):
         while True:
             candidate_batch = await q_in.get()
             self.fetched_batches.extend(candidate_batch)
-            found_live_streams = await self.fetch_live_streams(tc, candidate_batch, filter_lang=True, lang='en')
-            self.apply_stream_duration(found_live_streams)
-            # foo = {}
-            # foo.update({{ls.get('user_id'): ls} for ls in found_live_streams})
-            # print(foo)
-            if q_out:
-                [q_out.put_nowait(stream.get('user_id', None)) for stream in found_live_streams]
-            self.live_streams.extend(found_live_streams)
+            found_live_streams_list = await self.fetch_live_streams(tc, candidate_batch)
+            if found_live_streams_list := self.live_streams.list_filter_language(found_live_streams_list):
+                self.live_streams.update_from_list(found_live_streams_list)
+                if q_out:
+                    [q_out.put_nowait(stream.get('user_id')) for stream in found_live_streams_list]
+
             q_in.task_done()
 
 
@@ -92,15 +124,11 @@ class LiveStreamInfo:
         while True:
             live_streamer_uid = await q_in.get()
             total_followers = await tc.get_total_followers(int(live_streamer_uid))
-            # TODO: Keep uids+totals separate from live stream uid info or update ls uid info with total?
-            # self.live_streams.get(live_streamer_uid).update({'total': total_followers})
-            self.uid_totals[live_streamer_uid] = total_followers
+            self.live_streams.get(live_streamer_uid).update({'total_followers': total_followers})
 
             if q_out:
                 pass
             q_in.task_done()
-
-
 
 
 
@@ -173,6 +201,7 @@ async def run_v1(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: Li
 
     await q_live_uids.join()
     [t.cancel() for t in t_total]
+    # print(ls)
 
 
 
