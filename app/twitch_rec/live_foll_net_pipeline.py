@@ -25,7 +25,7 @@ class FollowNetPipeline:
         q_live_uids = asyncio.Queue()
 
 
-        t_prod = asyncio.create_task(self.streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+        t_prod = asyncio.create_task(self.streamer(tc, q_out=q_foll_ids))
         t_followings = [asyncio.create_task(
             self.folnet.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
         t_livestreams = asyncio.create_task(
