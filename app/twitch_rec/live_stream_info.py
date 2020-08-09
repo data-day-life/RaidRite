@@ -13,9 +13,14 @@ from dataclasses import dataclass, field
 
 @dataclass
 class LiveStreams:
-    data:       dict = field(default_factory={})
-    lang:       str = 'en'
+    data:       dict
+    lang:       str
     init_time:  datetime = field(default=datetime.now(utc))
+
+
+    def __init__(self, data: dict = None, lang='en'):
+        self.data = data or {}
+        self.lang = lang
 
 
     @staticmethod
@@ -81,7 +86,7 @@ class LiveStreamPipe:
 
 
     @property
-    def show(self, result=''):
+    def display(self, result=''):
         result += f'{Col.orange}<<<<< Pipe: Live Stream {Col.end}\n'
         result += f'{Col.white}  * Calls to Twitch: {self.num_ls_reqs}{Col.end}\n'
         result += f'{Col.orange} > Total Fetched Batches (sz={len(self.fetched_batches)}):{Col.end}\n'
@@ -226,8 +231,8 @@ async def main():
         await run_v1(tc=tc, streamer=streamer, folnet_pipe=folnet_pipe, ls_pipe=ls_pipe, n_consumers=n_consumers)
 
         print(streamer)
-        folnet_pipe.print
-        ls_pipe.show
+        folnet_pipe.display
+        ls_pipe.display
 
         print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
         print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
