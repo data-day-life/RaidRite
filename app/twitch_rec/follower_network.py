@@ -2,12 +2,12 @@ import asyncio
 from collections import Counter
 from time import perf_counter
 from app.twitch_rec.twitch_client import TwitchClient
-from app.twitch_rec.streamer import Streamer
+from app.twitch_rec.streamer import StreamerPipe
 from app.twitch_rec.colors import Col
 from typing import Set
 
 
-class FollowNet:
+class FollowNetPipe:
     BATCH_SZ:       int = 100
     num_collected:  int = 0
     num_skipped:    int = 0
@@ -112,7 +112,7 @@ class FollowNet:
         return result
 
 
-    async def run(self, tc: TwitchClient, streamer: Streamer, q_out=None, n_consumers=50):
+    async def run(self, tc: TwitchClient, streamer: StreamerPipe, q_out=None, n_consumers=50):
         q_foll_ids = asyncio.Queue()
 
         # Initialize producers and consumers for processing
@@ -139,8 +139,8 @@ async def main():
     n_consumers = 100
 
     async with TwitchClient() as tc:
-        streamer = Streamer(name=some_name, sample_sz=sample_sz)
-        folnet = FollowNet(streamer_id=streamer.uid)
+        streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
+        folnet = FollowNetPipe(streamer_id=streamer.uid)
         await folnet.run(tc, streamer, n_consumers=n_consumers)
         print(streamer)
         print(folnet)

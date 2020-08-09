@@ -4,7 +4,7 @@ from app.twitch_rec.bot_detection import BotDetector
 from app.twitch_rec.colors import Col
 
 
-class Streamer:
+class StreamerPipe:
 
     def __init__(self, name=None, streamer_id=None, sample_sz=300):
         self.name = name
@@ -114,7 +114,7 @@ async def main():
     some_name = 'emilybarkiss'
     sample_sz = 300
 
-    streamer = Streamer(name=some_name, sample_sz=sample_sz)
+    streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
     async with TwitchClient() as tc:
         await streamer(tc)
         await streamer.produce_follower_ids(tc)

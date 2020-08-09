@@ -5,8 +5,8 @@ from dateutil.parser import parse as dt_parse
 from datetime import datetime as datetime
 from pytz import utc
 from app.twitch_rec.twitch_client import TwitchClient
-from app.twitch_rec.streamer import Streamer
-from app.twitch_rec.follower_network import FollowNet
+from app.twitch_rec.streamer import StreamerPipe
+from app.twitch_rec.follower_network import FollowNetPipe
 from app.twitch_rec.colors import Col
 from dataclasses import dataclass, field
 
@@ -60,7 +60,7 @@ class LiveStreams:
 
 
 
-class LiveStreamInfo:
+class LiveStreamPipe:
     live_streams:       LiveStreams
     fetched_batches:    List[str] = []
     num_ls_reqs:        int = 0
@@ -133,7 +133,7 @@ class LiveStreamInfo:
 
 
 
-async def run_v2(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
+async def run_v2(tc: TwitchClient, streamer: StreamerPipe, folnet: FollowNetPipe, ls: LiveStreamPipe, n_consumers=50):
     print('\n\n********** Run V2 ********** ')
     q_foll_ids = asyncio.Queue()
     q_followings = asyncio.Queue()
@@ -172,7 +172,7 @@ async def run_v2(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: Li
 
 
 
-async def run_v1(tc: TwitchClient, streamer: Streamer, folnet: FollowNet, ls: LiveStreamInfo, n_consumers=50):
+async def run_v1(tc: TwitchClient, streamer: StreamerPipe, folnet: FollowNetPipe, ls: LiveStreamPipe, n_consumers=50):
     print('\n\n********** Run V1 ********** ')
     q_foll_ids = asyncio.Queue()
     q_followings = asyncio.Queue()
@@ -213,9 +213,9 @@ async def main():
     n_consumers = 100
 
     async with TwitchClient() as tc:
-        streamer = Streamer(name=some_name, sample_sz=sample_sz)
-        folnet = FollowNet(streamer_id=streamer.uid)
-        ls = LiveStreamInfo()
+        streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
+        folnet = FollowNetPipe(streamer_id=streamer.uid)
+        ls = LiveStreamPipe()
         await run_v1(tc=tc, streamer=streamer, folnet=folnet, ls=ls, n_consumers=n_consumers)
 
         print(streamer)
