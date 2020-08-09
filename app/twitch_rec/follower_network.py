@@ -43,7 +43,7 @@ class FollowNetPipe:
 
 
     @property
-    def print(self, result=''):
+    def display(self, result=''):
         result += f'{Col.green}<<<<< Pipe: Follower Network {Col.end}\n'
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
@@ -83,7 +83,7 @@ class FollowNetPipe:
             q_in.task_done()
 
 
-    def update_followings(self, following_reply, all_batches=False):
+    def update_followings(self, following_reply, all_batches=False) -> list:
         if following_reply:
             if following_reply.get('total') <= self.max_followings:
                 foll_data = following_reply.get('data')
@@ -98,7 +98,7 @@ class FollowNetPipe:
             return self.new_candidate_batches(remainder=False)
 
 
-    def new_candidate_batches(self, remainder=False):
+    def new_candidate_batches(self, remainder=False) -> list:
         new_candidates = self.folnet.mutual_followings.keys() - self.batch_history
         batches = self.batchify(list(new_candidates), remainder)
         flat_candidates = batches
@@ -151,7 +151,7 @@ async def main():
         folnet_pipe = FollowNetPipe(folnet)
         await folnet_pipe.run(tc, streamer, n_consumers=n_consumers)
         print(streamer)
-        folnet_pipe.print
+        folnet_pipe.display
 
         print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
         print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
