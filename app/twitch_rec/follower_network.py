@@ -5,6 +5,28 @@ from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.streamer import StreamerPipe
 from app.twitch_rec.colors import Col
 from typing import Set
+from dataclasses import dataclass
+
+
+@dataclass
+class FollowerNetwork:
+    streamer_id: str
+    min_mutual: int = 3
+
+    def __init__(self, streamer_id: str, min_mutual=3):
+        self.streamer_id = streamer_id
+        self.min_mutual = min_mutual
+        self._followings_counter = Counter()
+
+    @property
+    def followings_counter(self) -> Counter:
+        self._followings_counter.pop(self.streamer_id, None)
+        return self._followings_counter
+
+    @property
+    def mutual_followings(self) -> dict:
+        return {uid: count for uid, count in self.followings_counter.items() if count >= self.min_mutual}
+
 
 
 class FollowNetPipe:
@@ -12,41 +34,26 @@ class FollowNetPipe:
     num_collected:  int = 0
     num_skipped:    int = 0
     batch_history:  Set[str] = set()
-    steamer_id:     str
     max_followings: int
-    min_mutual:     int
 
 
-    def __init__(self, streamer_id: str, max_followings: int = 150, min_mutual: int = 3) -> None:
-        self.streamer_id = streamer_id
+    def __init__(self, folnet: FollowerNetwork, max_followings: int = 150) -> None:
+        self.folnet = folnet
         self.max_followings = max_followings
-        self.min_mutual = min_mutual
-        self._followings_counter = Counter()
 
 
-    def __str__(self, result=''):
-        result += f'{Col.green}<<<<< Follower Network {Col.end}\n'
+    @property
+    def print(self, result=''):
+        result += f'{Col.green}<<<<< Pipe: Follower Network {Col.end}\n'
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
-        result += f'{Col.green} > Followings Counter (sz={len(self.followings_counter)}){Col.end}\n'
-        result += f'     {self.followings_counter}\n'
-        result += f'{Col.green} > Mutual Followings (sz={len(self.mutual_followings)}){Col.end}\n'
-        result += f'     {self.mutual_followings}\n'
+        result += f'{Col.green} > Followings Counter (sz={len(self.folnet.followings_counter)}){Col.end}\n'
+        result += f'     {self.folnet.followings_counter}\n'
+        result += f'{Col.green} > Mutual Followings (sz={len(self.folnet.mutual_followings)}){Col.end}\n'
+        result += f'     {self.folnet.mutual_followings}\n'
         result += f'{Col.green} > Batch History (sz={len(self.batch_history)}){Col.end}\n'
         result += f'     {self.batch_history}\n'
-
-        return result
-
-
-    @property
-    def followings_counter(self) -> Counter:
-        self._followings_counter.pop(self.streamer_id, None)
-        return self._followings_counter
-
-
-    @property
-    def mutual_followings(self) -> dict:
-        return {uid: count for uid, count in self.followings_counter.items() if count >= self.min_mutual}
+        return print(result)
 
 
     async def produce_followed_ids(self, tc: TwitchClient, q_in, q_out=None) -> None:
@@ -80,7 +87,7 @@ class FollowNetPipe:
         if following_reply:
             if following_reply.get('total') <= self.max_followings:
                 foll_data = following_reply.get('data')
-                self.followings_counter.update([following.get('to_id') for following in foll_data])
+                self.folnet.followings_counter.update([following.get('to_id') for following in foll_data])
                 self.num_collected += 1
             else:
                 self.num_skipped += 1
@@ -92,7 +99,7 @@ class FollowNetPipe:
 
 
     def new_candidate_batches(self, remainder=False):
-        new_candidates = self.mutual_followings.keys() - self.batch_history
+        new_candidates = self.folnet.mutual_followings.keys() - self.batch_history
         batches = self.batchify(list(new_candidates), remainder)
         flat_candidates = batches
         if remainder and batches and isinstance(batches[0], list):
@@ -140,10 +147,11 @@ async def main():
 
     async with TwitchClient() as tc:
         streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
-        folnet = FollowNetPipe(streamer_id=streamer.uid)
-        await folnet.run(tc, streamer, n_consumers=n_consumers)
+        folnet = FollowerNetwork(streamer_id=streamer.uid)
+        folnet_pipe = FollowNetPipe(folnet)
+        await folnet_pipe.run(tc, streamer, n_consumers=n_consumers)
         print(streamer)
-        print(folnet)
+        folnet_pipe.print
 
         print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
         print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
