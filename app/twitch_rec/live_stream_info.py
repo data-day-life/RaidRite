@@ -65,8 +65,8 @@ class LiveStreams:
 
 
     @property
-    def total_followers(self) -> list:
-        return [{uid: uid.get('total_followers')} for uid in self.data]
+    def total_followers(self) -> dict:
+        return {uid: attrs.get('total_followers') for uid, attrs in self.data.items()}
 
 
 
