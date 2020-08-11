@@ -2,6 +2,54 @@ import asyncio
 from app.twitch_rec.twitch_client import TwitchClient
 from app.twitch_rec.bot_detection import BotDetector
 from app.twitch_rec.colors import Col
+from dataclasses import dataclass
+import re
+
+
+@dataclass
+class Streamer:
+    name:        str = None
+    uid:         str = None
+    prof_img:    str = None
+    caster_type: str = None
+    view_count:  int = None
+    total_folls: int = -1
+    valid:       bool = False
+
+
+    @staticmethod
+    def validate_name(name: str) -> str:
+        if not name:
+            raise ValueError('Provided name was empty ("") or "None".')
+        # Strip any whitespace before matching to help the user; "Bob Ross" becomes a valid search
+        matched = re.match(r"^(?!_)[a-zA-Z0-9_]{4,25}$", re.sub(r"\s+", "", name))
+        if not matched:
+            raise ValueError('Names may only contain 4-25 alpha-numeric characters (as well as "_") '
+                             'and may not begin with "_" or contain any spaces.')
+
+        return matched.string
+
+
+    @classmethod
+    async def create(cls, name: str, tc: TwitchClient):
+        try:
+            name = Streamer.validate_name(name)
+            found = await tc.get_users(name)
+        except ValueError as err:
+            print(err)
+        except Exception as err:
+            print(err)
+        else:
+            if not found:
+                raise ValueError(f'No user named "{name}" could be found on Twitch.')
+            found = found[0]
+            return cls(name=found.display_name,
+                       uid=found.id,
+                       prof_img=found.profile_image,
+                       caster_type=found.broadcaster_type,
+                       view_count=found.view_count,
+                       valid=True)
+
 
 
 class StreamerPipe:
