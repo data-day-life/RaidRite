@@ -97,7 +97,7 @@ class StreamerPipe:
 
 
     async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None):
-        if self.streamer.valid:
+        try:
             await self.produce_follower_ids(tc, q_out)
         except Exception as err:
             print(f'{err} Unable to execute StreamerPipe.')
@@ -129,26 +129,25 @@ class StreamerPipe:
         except Exception as err:
             raise AttributeError(f'{err} Unable to produce follower ids.')
 
-        def put_queue(id_list):
-            [q_out.put_nowait(foll_id) for foll_id in id_list]
+        return await self.fetch_follower_ids(tc, q_out)
 
+
+    async def fetch_follower_ids(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         follower_reply = await tc.get_full_n_followers(self.streamer.uid, n_folls=self.sample_sz)
         next_cursor = follower_reply.get('cursor')
         self.streamer.total_folls = follower_reply.get('total', 0)
 
         # Sanitize first fetch, then sanitize remaining fetches
-        all_sanitized_uids = self.bd.santize_foll_list(follower_reply.get('data'))
-        if q_out:
-            put_queue(all_sanitized_uids)
+        all_sanitized_uids = self.bd.sanitize_foll_list(follower_reply.get('data'))
+        self.put_queue(all_sanitized_uids, q_out)
 
         while (len(all_sanitized_uids) < self.sample_sz) and next_cursor:
             params = [('after', next_cursor)]
             next_foll_reply = await tc.get_full_n_followers(self.streamer.uid, params=params)
             next_cursor = next_foll_reply.get('cursor')
-            next_sanitized_uids = self.bd.santize_foll_list(next_foll_reply.get('data'))
+            next_sanitized_uids = self.bd.sanitize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
-            if q_out:
-                put_queue(next_sanitized_uids)
+            self.put_queue(next_sanitized_uids, q_out)
 
         if q_out:
             q_out.put_nowait('DONE')
@@ -167,7 +166,7 @@ async def main():
     async with TwitchClient() as tc:
         streamer = await Streamer(some_name).create(tc)
         str_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
-        await str_pipe.produce_follower_ids(tc)
+        await str_pipe(tc)
 
     streamer.display
     str_pipe.display
