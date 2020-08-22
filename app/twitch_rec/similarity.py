@@ -18,8 +18,12 @@ class SimilarityScore:
 
 
     @property
+    def sum_mutual_followings(self):
+        return sum(self.mutual_followings.values())
+
+
+    @property
     def sim_scores(self) -> dict:
-        sum_mutual_followings = sum(self.sim_data.mutual_following_counts.values())
         similarity_scores = {}
         for uid, tot_folls in self.total_followers.items():
             similarity_scores.update(
