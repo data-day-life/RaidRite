@@ -1,25 +1,18 @@
 import asyncio
 from app.twitch_rec.twitch_client import TwitchClient
-from app.twitch_rec.streamer import StreamerPipe
+from app.twitch_rec.streamer import StreamerPipe, Streamer
 from app.twitch_rec.follower_network import FollowNetPipe, FollowerNetwork
 from app.twitch_rec.live_stream_info import LiveStreamPipe, LiveStreams
 
 
-class PipelineBuilder:
+class RecommendationPipeline:
 
-    def __init__(self, streamer: StreamerPipe, folnet: FollowerNetwork, live_streams: LiveStreams) -> None:
-        self.streamer_pipe = streamer
-        self.folnet_pipe = FollowNetPipe(folnet)
+    # TODO: want this to take instantiated objects as params instead of arguments to instantiate the objects
+    def __init__(self, streamer: Streamer, folnet: FollowerNetwork, live_streams: LiveStreams,
+                 max_followings: int = 150, sample_sz: int = 300 ) -> None:
+        self.streamer_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
+        self.folnet_pipe = FollowNetPipe(folnet, max_followings=max_followings)
         self.live_stream_pipe = LiveStreamPipe(live_streams)
-
-
-    @classmethod
-    def from_name(cls, streamer_name: str, sample_sz: int = 300):
-        streamer = StreamerPipe(name=streamer_name, sample_sz=sample_sz)
-        folnet = FollowerNetwork(streamer.uid)
-        live_streams = LiveStreams()
-
-        return cls(streamer, folnet, live_streams)
 
 
     async def __call__(self, tc: TwitchClient, n_consumers: int):
@@ -27,7 +20,9 @@ class PipelineBuilder:
         q_followings = asyncio.Queue()
         q_live_uids = asyncio.Queue()
 
-        t_prod = asyncio.create_task(self.streamer_pipe(tc, q_out=q_foll_ids))
+        await self.streamer_pipe(tc, q_out=q_foll_ids)
+
+        # t_prod = asyncio.create_task(self.streamer_pipe(tc, q_out=q_foll_ids))
         t_followings = [asyncio.create_task(
             self.folnet_pipe.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
         t_livestreams = asyncio.create_task(
@@ -36,7 +31,7 @@ class PipelineBuilder:
             self.live_stream_pipe.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers // 2)]
 
         # Streamer: follower ids
-        await asyncio.gather(t_prod)
+        # await asyncio.gather(t_prod)
 
         # Folnet: follower's followings
         await q_foll_ids.join()
@@ -61,14 +56,15 @@ async def main():
     sample_sz = 350
     n_consumers = 100
 
-    streamer = StreamerPipe('emilybarkiss', sample_sz=sample_sz)
-    folnet = FollowerNetwork(streamer.uid)
-    live_streams = LiveStreams()
-    pipeline = PipelineBuilder(streamer, folnet, live_streams)
     async with TwitchClient() as tc:
+        streamer = Streamer(name=some_name)
+        folnet = FollowerNetwork(streamer.uid)
+        livestreams = LiveStreams()
+
+        pipeline = RecommendationPipeline(streamer, folnet, livestreams, sample_sz)
         await pipeline(tc, n_consumers)
 
-    print(pipeline.streamer_pipe)
+    streamer.display
     pipeline.folnet_pipe.display
     pipeline.live_stream_pipe.display
 
@@ -78,4 +74,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(), debug=True)
