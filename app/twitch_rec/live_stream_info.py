@@ -1,11 +1,11 @@
 import asyncio
 from time import perf_counter
-from typing import List, Dict
+from typing import List
 from dateutil.parser import parse as dt_parse
 from datetime import datetime as datetime
 from pytz import utc
 from app.twitch_rec.twitch_client import TwitchClient
-from app.twitch_rec.streamer import StreamerPipe
+from app.twitch_rec.streamer import StreamerPipe, Streamer
 from app.twitch_rec.follower_network import FollowNetPipe, FollowerNetwork
 from app.twitch_rec.colors import Col
 from dataclasses import dataclass, field
@@ -96,6 +96,7 @@ class LiveStreamPipe:
         tot_followers = [{f'uid: {uid}': f'tot: {details.get("total_followers")}'} for uid, details in self.live_streams.data.items()]
         result += f'{Col.orange} > Tot. Followers, Live Streams (sz={len(tot_followers)}):{Col.end}\n'
         result += f'     {tot_followers}\n'
+
         return print(result)
 
 
@@ -182,13 +183,13 @@ async def run_v2(tc: TwitchClient, streamer: StreamerPipe, folnet_pipe: FollowNe
 
 
 
-async def run_v1(tc: TwitchClient, streamer: StreamerPipe, folnet_pipe: FollowNetPipe, ls_pipe: LiveStreamPipe, n_consumers=50):
+async def run_v1(tc: TwitchClient, str_pipe: StreamerPipe, folnet_pipe: FollowNetPipe, ls_pipe: LiveStreamPipe, n_consumers=50):
     print('\n\n********** Run V1 ********** ')
     q_foll_ids = asyncio.Queue()
     q_followings = asyncio.Queue()
     q_live_uids = asyncio.Queue()
 
-    t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+    t_prod = asyncio.create_task(str_pipe.produce_follower_ids(tc, q_out=q_foll_ids))
     t_followings = [asyncio.create_task(
         folnet_pipe.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
     t_livestreams = asyncio.create_task(ls_pipe.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
@@ -223,12 +224,13 @@ async def main():
     n_consumers = 100
 
     async with TwitchClient() as tc:
-        streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
+        streamer = await Streamer().create(tc, some_name)
+        str_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
         folnet = FollowerNetwork(streamer_id=streamer.uid)
         folnet_pipe = FollowNetPipe(folnet)
         live_streams = LiveStreams()
         ls_pipe = LiveStreamPipe(live_streams)
-        await run_v1(tc=tc, streamer=streamer, folnet_pipe=folnet_pipe, ls_pipe=ls_pipe, n_consumers=n_consumers)
+        await run_v1(tc=tc, str_pipe=str_pipe, folnet_pipe=folnet_pipe, ls_pipe=ls_pipe, n_consumers=n_consumers)
 
         print(streamer)
         folnet_pipe.display

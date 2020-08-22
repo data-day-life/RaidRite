@@ -2,7 +2,7 @@ import asyncio
 from collections import Counter
 from time import perf_counter
 from app.twitch_rec.twitch_client import TwitchClient
-from app.twitch_rec.streamer import StreamerPipe
+from app.twitch_rec.streamer import StreamerPipe, Streamer
 from app.twitch_rec.colors import Col
 from typing import Set
 from dataclasses import dataclass
@@ -18,10 +18,12 @@ class FollowerNetwork:
         self.min_mutual = min_mutual
         self._followings_counter = Counter()
 
+
     @property
     def followings_counter(self) -> Counter:
         self._followings_counter.pop(self.streamer_id, None)
         return self._followings_counter
+
 
     @property
     def mutual_followings(self) -> dict:
@@ -119,11 +121,11 @@ class FollowNetPipe:
         return result
 
 
-    async def run(self, tc: TwitchClient, streamer: StreamerPipe, q_out=None, n_consumers=50):
+    async def run(self, tc: TwitchClient, streamer_pipe: StreamerPipe, q_out=None, n_consumers=50):
         q_foll_ids = asyncio.Queue()
 
         # Initialize producers and consumers for processing
-        t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
+        t_prod = asyncio.create_task(streamer_pipe.produce_follower_ids(tc, q_out=q_foll_ids))
         t_followings = [asyncio.create_task(
             self.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
         # Block until producer and consumers are exhausted
@@ -146,10 +148,11 @@ async def main():
     n_consumers = 100
 
     async with TwitchClient() as tc:
-        streamer = StreamerPipe(name=some_name, sample_sz=sample_sz)
+        streamer = await Streamer().create(tc, some_name)
+        streamer_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
         folnet = FollowerNetwork(streamer_id=streamer.uid)
         folnet_pipe = FollowNetPipe(folnet)
-        await folnet_pipe.run(tc, streamer, n_consumers=n_consumers)
+        await folnet_pipe.run(tc, streamer_pipe, n_consumers=n_consumers)
         print(streamer)
         folnet_pipe.display
 
