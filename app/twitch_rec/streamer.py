@@ -25,24 +25,32 @@ class Streamer:
         # Strip any whitespace before matching to help the user; "Bob Ross" becomes a valid search
         matched = re.match(r"^(?!_)[a-zA-Z0-9_]{4,25}$", re.sub(r"\s+", "", name))
         if not matched:
-            raise ValueError('Names may only contain 4-25 alpha-numeric characters (as well as "_") '
-                             'and may not begin with "_" or contain any spaces.')
+            raise ValueError('Valid names are between 4-25 alpha-numeric characters (as well as "_"), '
+                             'but may not contain any spaces or begin with "_".')
 
         return matched.string
 
 
-    async def create(self, tc: TwitchClient, new_name: str = None):
-        name = new_name or self.name
+    async def validate_remote(self, tc, some_name: str = None):
+        name = some_name or self.name
+        name = Streamer.validate_name(name)
         try:
-            valid_name = Streamer.validate_name(name)
-            found = await tc.get_users(valid_name)
+            found = await tc.get_users(name)
             found = found[0]
-        except ValueError as err:
-            print(err)
-        except Exception as err:
-            print(err)
         except IndexError:
             raise ValueError(f'No user named "{name}" could be found on Twitch.')
+        else:
+            return found
+
+
+    async def create(self, tc: TwitchClient, some_name: str = None):
+        if self.valid:
+            return self
+        try:
+            name = some_name or self.name
+            found = await self.validate_remote(tc, name)
+        except Exception as err:
+            print(err)
         else:
             self.name = found.display_name
             self.uid = found.id
@@ -71,7 +79,7 @@ class StreamerPipe:
 
     def __init__(self, streamer: Streamer, sample_sz=300):
         if streamer is None:
-            raise ValueError('Unable to create StreamerPipe; provided Streamer object was "None".')
+            raise AttributeError('Streamer object provided to StreamerPipe was "None".')
         self.streamer = streamer
         self.sample_sz = sample_sz
         self.sanitized_follower_ids = list()
@@ -91,8 +99,14 @@ class StreamerPipe:
     async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         if self.streamer.valid:
             await self.produce_follower_ids(tc, q_out)
-        else:
-            raise AttributeError('Provided Streamer object has not been validated.')
+        except Exception as err:
+            print(f'{err} Unable to execute StreamerPipe.')
+
+
+    @staticmethod
+    def put_queue(id_list, q_out: asyncio.Queue = None):
+        if q_out:
+            [q_out.put_nowait(foll_id) for foll_id in id_list]
 
 
     async def produce_follower_ids(self, tc: TwitchClient, q_out: asyncio.Queue = None):
@@ -110,8 +124,10 @@ class StreamerPipe:
         Returns:
             A list of sanitized follower uids; length is not necessarily equal to sample_sz.
         """
-        if not self.streamer.valid:
-            raise AttributeError('Unable to produce follower ids: provided Streamer object has not been validated.')
+        try:
+            await self.streamer.create(tc)
+        except Exception as err:
+            raise AttributeError(f'{err} Unable to produce follower ids.')
 
         def put_queue(id_list):
             [q_out.put_nowait(foll_id) for foll_id in id_list]
