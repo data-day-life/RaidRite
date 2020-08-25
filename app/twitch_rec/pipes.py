@@ -1,5 +1,6 @@
 import asyncio
 from typing import List
+from dataclasses import dataclass
 
 """
 !!! Full generic implementation(s) :  
@@ -20,12 +21,25 @@ StackOverflow -- Async decorator for generators & coroutines
 
 
 class Pipe:
-    q_in:   asyncio.Queue = None
-    q_out:  asyncio.Queue = None
+    q_in:   asyncio.Queue = asyncio.Queue
+    q_out:  asyncio.Queue = asyncio.Queue
     tasks:  List[asyncio.Task] = []
+    data:   dataclass
 
-    def __init__(self):
-        pass
+    def __init__(self, datacls_obj: dataclass):
+        self.data = datacls_obj
+
+
+    @property
+    def display(self):
+        return self.data.display
+
+
+    def put_queue(self, item_list):
+        if self.q_out:
+            [self.q_out.put_nowait(item) for item in item_list]
+
+
 
 
 class Pipeline:
