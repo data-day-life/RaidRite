@@ -78,6 +78,16 @@ class TwitchClient(Client):
             return list(chain.from_iterable(await asyncio.gather(*streams)))
 
 
+    async def validate_name_remote(self, some_name: str = None):
+        try:
+            found = await self.get_users(some_name)
+            found = found[0]
+        except IndexError:
+            raise ValueError(f'No user named "{some_name}" could be found on Twitch.')
+        else:
+            return found
+
+
 async def main(name_list):
     tc = TwitchClient()
 
