@@ -19,7 +19,7 @@ class Streamer:
 
 
     @staticmethod
-    def validate_name(name: str) -> str:
+    def _validate_name(name: str) -> str:
         if not name:
             raise ValueError('Provided name was empty ("") or "None".')
         # Strip any whitespace before matching to help the user; "Bob Ross" becomes a valid search
@@ -31,33 +31,21 @@ class Streamer:
         return matched.string
 
 
-    async def validate_remote(self, tc, some_name: str = None):
-        name = some_name or self.name
-        name = Streamer.validate_name(name)
-        try:
-            found = await tc.get_users(name)
-            found = found[0]
-        except IndexError:
-            raise ValueError(f'No user named "{name}" could be found on Twitch.')
-        else:
-            return found
+    async def validate(self, tc, some_name: str = None):
+        name = Streamer._validate_name(some_name or self.name)
+        return await tc.validate_name_remote(name)
 
 
     async def create(self, tc: TwitchClient, some_name: str = None):
-        if self.valid:
-            return self
-        try:
-            name = some_name or self.name
-            found = await self.validate_remote(tc, name)
-        except Exception as err:
-            print(err)
-        else:
+        if not self.valid:
+            found = await self.validate(tc, some_name)
             self.name = found.display_name
             self.uid = found.id
             self.prof_img = found.profile_image
             self.caster_type = found.broadcaster_type
             self.view_count = found.view_count
             self.valid = True
+
         return self
 
 
@@ -97,10 +85,8 @@ class StreamerPipe:
 
 
     async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None):
-        try:
-            await self.produce_follower_ids(tc, q_out)
-        except Exception as err:
-            print(f'{err} Unable to execute StreamerPipe.')
+        await self.produce_follower_ids(tc, q_out)
+        print(f'Unable to execute StreamerPipe.')
 
 
     @staticmethod
