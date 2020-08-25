@@ -85,7 +85,7 @@ class FollowNetPipe:
             q_in.task_done()
 
 
-    def update_followings(self, following_reply, all_batches=False) -> list:
+    def update_followings(self, following_reply, remainder=False) -> list:
         if following_reply:
             if following_reply.get('total') <= self.max_followings:
                 foll_data = following_reply.get('data')
@@ -94,10 +94,7 @@ class FollowNetPipe:
             else:
                 self.num_skipped += 1
 
-        if all_batches:
-            return self.new_candidate_batches(remainder=True)
-        else:
-            return self.new_candidate_batches(remainder=False)
+        return self.new_candidate_batches(remainder)
 
 
     def new_candidate_batches(self, remainder=False) -> list:
@@ -125,7 +122,7 @@ class FollowNetPipe:
         q_foll_ids = asyncio.Queue()
 
         # Initialize producers and consumers for processing
-        t_prod = asyncio.create_task(streamer_pipe.produce_follower_ids(tc, q_out=q_foll_ids))
+        t_prod = asyncio.create_task(streamer_pipe.produce_follower_ids(tc, q_out=q_foll_ids), name='Followers')
         t_followings = [asyncio.create_task(
             self.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_out)) for _ in range(n_consumers)]
         # Block until producer and consumers are exhausted
@@ -153,6 +150,7 @@ async def main():
         folnet = FollowerNetwork(streamer_id=streamer.uid)
         folnet_pipe = FollowNetPipe(folnet)
         await folnet_pipe.run(tc, streamer_pipe, n_consumers=n_consumers)
+
         streamer.display
         folnet_pipe.display
 
@@ -163,4 +161,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(), debug=True)
