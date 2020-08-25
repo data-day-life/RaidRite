@@ -22,7 +22,7 @@ class TestStreamer(unittest.TestCase):
 
     def test_Streamer_has_tot_followers(self):
         # As of last check, stroopC has 465 followers; floor is set to 450 for future-proofing
-        self.assertTrue(streamer.total_followers > 450)
+        self.assertTrue(streamer.live_uid_total_followers > 450)
 
     def test_Streamer_has_foll_list(self):
         # Test whether get_follows produces a non-empty list
@@ -32,7 +32,7 @@ class TestStreamer(unittest.TestCase):
     def test_Streamer_foll_list_size_matches_total_followers(self):
         foll_result = streamer.get_all_follows()
         self.assertTrue (len(foll_result) > 0)
-        self.assertEqual(len(foll_result), streamer.total_followers)
+        self.assertEqual(len(foll_result), streamer.live_uid_total_followers)
         self.assertEqual(len(foll_result), streamer.get_total_follows_count())
 
     def test_Streamer_zero_follower_list_is_okay(self):
@@ -41,8 +41,8 @@ class TestStreamer(unittest.TestCase):
         # This twitch user has 0 total followers
         self.assertFalse(len(foll_result) > 0)
         self.assertEqual(len(foll_result), 0)
-        self.assertEqual(len(foll_result), zero_streamer.total_followers)
-        self.assertEqual(zero_streamer.total_followers, 0)
+        self.assertEqual(len(foll_result), zero_streamer.live_uid_total_followers)
+        self.assertEqual(zero_streamer.live_uid_total_followers, 0)
         self.assertEqual(zero_streamer.get_total_follows_count(), 0)
         self.assertEqual(int(zero_streamer.get_total_follows_count()), len(foll_result))
 
@@ -52,8 +52,8 @@ class TestStreamer(unittest.TestCase):
         # This twitch user has 9 total followers
         self.assertTrue(len(foll_result) > 0)
         self.assertEqual(len(foll_result), very_small_streamer.get_total_follows_count())
-        self.assertEqual(len(foll_result), very_small_streamer.total_followers)
-        self.assertEqual(very_small_streamer.total_followers, very_small_streamer.get_total_follows_count())
+        self.assertEqual(len(foll_result), very_small_streamer.live_uid_total_followers)
+        self.assertEqual(very_small_streamer.live_uid_total_followers, very_small_streamer.get_total_follows_count())
         self.assertEqual(int(very_small_streamer.get_total_follows_count()), len(foll_result))
 
 if __name__ == '__main__':
