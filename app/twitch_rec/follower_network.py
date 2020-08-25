@@ -153,7 +153,7 @@ async def main():
         folnet = FollowerNetwork(streamer_id=streamer.uid)
         folnet_pipe = FollowNetPipe(folnet)
         await folnet_pipe.run(tc, streamer_pipe, n_consumers=n_consumers)
-        print(streamer)
+        streamer.display
         folnet_pipe.display
 
         print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
