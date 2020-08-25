@@ -38,7 +38,7 @@ class LiveStreams:
     @staticmethod
     def parse_duration(twitch_time: str, base_time: datetime) -> dict:
         diff = (base_time - dt_parse(twitch_time)).total_seconds()
-        result = {'stream_duration': f'{int(diff // 3600)}hr {int((diff % 3600) // 60)}min'}
+        result = {'stream_duration': f'{int(diff // 3600)}hr {int((diff % 3600) // 60)} min'}
         return result
 
 
