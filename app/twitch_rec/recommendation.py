@@ -6,6 +6,7 @@ from app.twitch_rec.live_stream_info import LiveStreams
 from app.twitch_rec.recommendation_pipeline import RecommendationPipeline
 from app.twitch_rec.similarity import JaccardSim
 from collections import OrderedDict
+from app.twitch_rec.colors import Col
 
 
 class Recommendation:
@@ -32,19 +33,36 @@ class Recommendation:
             self.pipeline = RecommendationPipeline(self.streamer, self.folnet, self.live_streams)
             await self.pipeline(tc, n_consumers)
 
-        ranked_sims = JaccardSim(self.folnet.mutual_followings, self.live_streams.total_followers).ranked_sim_scores
-        print(ranked_sims)
+        mutual_followings, tot_followers = self.folnet.mutual_followings, self.live_streams.total_followers
+        num_collected = self.pipeline.folnet_pipe.num_collected
+        ranked_sims = JaccardSim(mutual_followings, tot_followers, num_collected).ranked_sim_scores
+        # print(ranked_sims)
 
         for uid in ranked_sims:
-            print(self.live_streams.get(uid))
+            got = self.live_streams.get(uid)
+            formatted = f'\n' \
+                        f'{got["user_name"]:>18}  ' \
+                        f'{got["viewer_count"]:>4}  ' \
+                        f'{got["stream_duration"]:>10}   ' \
+                        f'{got["language"]:>2}  ' \
+                        f'{got["total_followers"]:>4}  ' \
+                        f'{ranked_sims.get(uid)*100:.3f}  ' \
+                        f'{mutual_followings.get(uid):>3}'
 
+
+            print(formatted)
+            # print(self.live_streams.get(uid))
             results.update({uid: self.live_streams.get(uid)})
 
-        print(results)
+        # print(results)
 
         await tc.close()
 
         return results
+
+    def displ_fmt(self, name, viewers, duration, lang, total_folls, sim_score, mutual_count):
+        pass
+
 
 # live_list = {
 #             usr['user_id']: {
@@ -60,8 +78,12 @@ class Recommendation:
 
 
 async def main():
+    from time import perf_counter
+    t = perf_counter()
+
     rec = Recommendation('emilybarkiss')
     await rec()
+    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
 
 if __name__ == "__main__":
     asyncio.run(main())
