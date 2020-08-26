@@ -35,7 +35,7 @@ class TwitchClient(Client):
         return await self.http.request('GET', '/users/follows', params=params, count=True)
 
 
-    async def get_n_followers(self, user_id, n_folls=300, wanted_full=False, params=None):
+    async def get_n_followers(self, user_id, n_folls=100, wanted_full=False, params=None):
         params = params or []
         params.extend([('to_id', user_id)])
         return await self.http.request('GET', '/users/follows', params=params, limit=n_folls, full_reply=wanted_full)
@@ -47,7 +47,7 @@ class TwitchClient(Client):
         return await self.http.request('GET', '/users/follows', params=params, limit=n_folls, full_reply=wanted_full)
 
 
-    async def get_full_n_followers(self, user_id, n_folls=300, params=None):
+    async def get_full_n_followers(self, user_id, n_folls=100, params=None):
         return await self.get_n_followers(user_id, n_folls, wanted_full=True, params=params)
 
 
