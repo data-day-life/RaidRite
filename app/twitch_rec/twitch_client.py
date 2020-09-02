@@ -6,6 +6,7 @@ from itertools import chain
 
 BATCH_SZ = 100
 
+
 class TwitchClient(Client):
     
     def __init__(self, loop=None):
@@ -48,20 +49,10 @@ class TwitchClient(Client):
         return await self.http.request('GET', '/users/follows', params=params, limit=n_folls, **kwargs)
 
 
-    # TODO: Rename this method: get_full_reply_followers
-    async def get_full_n_followers(self, user_id, n_folls=BATCH_SZ, params=None, **kwargs):
-        return await self.get_n_followers(user_id, n_folls, params=params, **dict(kwargs, full_reply=True))
-
-
-    # TODO: Rename this method: get_full_reply_followings
-    async def get_full_n_followings(self, user_id, n_folls=BATCH_SZ, params=None, **kwargs):
-        return await self.get_n_followings(user_id, n_folls, params=params, **dict(kwargs, full_reply=True))
-
-
     async def fetch_capped_followings(self, user_id, cap_sz: int):
         """ Fetches followings data for a given uid provided that their total followings < cap_sz """
         data = []
-        reply = await self.get_full_n_followings(user_id)
+        reply = await self.get_n_followings(user_id, full_reply=True)
         if reply and isinstance(reply, dict):
             total_followings = reply.get('total', -1)
             if 0 < total_followings < cap_sz:
@@ -125,11 +116,14 @@ async def main(name_list):
 
 
     # Followings -- using adapter (above)
-    # ver1 = await tc.get_full_n_followings(stroopc_uid, n_folls=210)
-    # print(f'Followings (sz={len(ver1.get("data"))}): \n {ver1.get("data")}')
+    ver1 = await tc.get_n_followings(stroopc_uid, n_folls=None)
+    print(f'Followings (sz={len(ver1)}): \n {ver1}')
+    num_calls = tc.http.count_success_resp
+    print(f'Num Calls to Twitch:  {num_calls}')
 
     ver2 = await tc.fetch_capped_followings(stroopc_uid, 210)
     print(f'Followings (sz={len(ver2)}): \n {ver2}')
+    print(f'Num Calls to Twitch:  {tc.http.count_success_resp - num_calls}')
 
 
     # Chatters
@@ -145,7 +139,6 @@ async def main(name_list):
     # print(f'Streams:\n  {live_streams}')
 
     # Cleanup open session sockets and event loops
-    print(f'Num Calls to Twitch:  {tc.http.count_success_resp}')
     await tc.close()
 
 
