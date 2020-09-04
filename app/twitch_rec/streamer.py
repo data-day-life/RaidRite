@@ -86,7 +86,6 @@ class StreamerPipe:
 
     async def __call__(self, tc: TwitchClient, q_out: asyncio.Queue = None):
         await self.produce_follower_ids(tc, q_out)
-        print(f'Unable to execute StreamerPipe.')
 
 
     @staticmethod
@@ -119,7 +118,7 @@ class StreamerPipe:
 
 
     async def fetch_follower_ids(self, tc: TwitchClient, q_out: asyncio.Queue = None):
-        follower_reply = await tc.get_full_n_followers(self.streamer.uid, n_folls=self.sample_sz)
+        follower_reply = await tc.get_n_followers(self.streamer.uid, n_folls=self.sample_sz, full_reply=True)
         next_cursor = follower_reply.get('cursor')
         self.streamer.total_folls = follower_reply.get('total', 0)
 
@@ -127,16 +126,13 @@ class StreamerPipe:
         all_sanitized_uids = self.bd.sanitize_foll_list(follower_reply.get('data'))
         self.put_queue(all_sanitized_uids, q_out)
 
-        while (len(all_sanitized_uids) < self.sample_sz) and next_cursor:
+        while next_cursor and len(all_sanitized_uids) < self.sample_sz:
             params = [('after', next_cursor)]
-            next_foll_reply = await tc.get_full_n_followers(self.streamer.uid, params=params)
+            next_foll_reply = await tc.get_n_followers(self.streamer.uid, params=params, full_reply=True)
             next_cursor = next_foll_reply.get('cursor')
             next_sanitized_uids = self.bd.sanitize_foll_list(next_foll_reply.get('data'))
             all_sanitized_uids.extend(next_sanitized_uids)
             self.put_queue(next_sanitized_uids, q_out)
-
-        if q_out:
-            q_out.put_nowait('DONE')
 
         self.sanitized_follower_ids = all_sanitized_uids
         return self.sanitized_follower_ids
@@ -156,7 +152,8 @@ async def main():
 
     streamer.display
     str_pipe.display
-    print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
+    print(f'{Col.orange}[📞] Total Calls to Twitch: {tc.http.count_success_resp} {Col.end}')
+    print(f'{Col.cyan}[⏲] Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
 
 
 if __name__ == "__main__":
