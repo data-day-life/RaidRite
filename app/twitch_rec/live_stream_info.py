@@ -100,17 +100,18 @@ class LiveStreamPipe:
         return print(result)
 
 
-    async def __call__(self, tc: TwitchClient, q_in_followings: asyncio.Queue, q_out: asyncio.Queue = None, n_cons=50):
-        q_live_uids = asyncio.Queue()
-        t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_in_followings, q_out=q_live_uids))
-        t_total = [asyncio.create_task(
-            self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_cons)]
-
-        await q_in_followings.join()
-        t_livestreams.cancel()
-
-        await q_live_uids.join()
-        [t.cancel() for t in t_total]
+    # async def __call__(self, tc: TwitchClient, q_in_followings: asyncio.Queue, q_out: asyncio.Queue = None, n_cons=50):
+    #     # TODO: needs work
+    #     q_live_uids = asyncio.Queue()
+    #     t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_in_followings, q_out=q_live_uids))
+    #     t_total = [asyncio.create_task(
+    #         self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_cons)]
+    #
+    #     await q_in_followings.join()
+    #     t_livestreams.cancel()
+    #
+    #     await q_live_uids.join()
+    #     [t.cancel() for t in t_total]
 
 
     async def fetch_live_streams(self, tc: TwitchClient, candidates) -> list:
@@ -142,49 +143,7 @@ class LiveStreamPipe:
             q_in.task_done()
 
 
-
-
-async def run_v2(tc: TwitchClient, streamer: StreamerPipe, folnet_pipe: FollowNetPipe, ls_pipe: LiveStreamPipe, n_consumers=50):
-    print('\n\n********** Run V2 ********** ')
-    q_foll_ids = asyncio.Queue()
-    q_followings = asyncio.Queue()
-    q_live_uids = asyncio.Queue()
-
-    t_prod = asyncio.create_task(streamer.produce_follower_ids(tc, q_out=q_foll_ids))
-    t_followings = [asyncio.create_task(
-        folnet_pipe.produce_followed_ids(tc, q_in=q_foll_ids, q_out=q_followings)) for _ in range(n_consumers)]
-    # t_livestreams = asyncio.create_task(self.produce_live_streams(tc, q_in=q_followings, q_out=q_live_uids))
-    # t_total = [asyncio.create_task(
-    #     self.consume_live_streams(tc, q_in=q_live_uids)) for _ in range(n_consumers//2)]
-
-    # Streamer: follower ids
-    await asyncio.gather(t_prod)
-    # print(streamer)
-
-    # Folnet: follower's followings
-    await q_foll_ids.join()
-
-    # task creation must follow q_foll_ids.join() b/c the join produces q_followings
-    t_ls = asyncio.create_task(ls_pipe(tc, q_in_followings=q_followings, n_cons=n_consumers // 2))
-    [q_followings.put_nowait(batch) for batch in folnet_pipe.new_candidate_batches(remainder=True)]
-    [t.cancel() for t in t_followings]
-    print(folnet_pipe)
-
-    # LiveStreams
-    await q_followings.join()
-    # print(self)
-
-    await q_live_uids.join()
-
-    # task creation must follow q_foll_ids.join() b/c the join produces q_followings
-    # t_ls = asyncio.create_task(self.__call__(tc, q_in_followings=q_followings))
-    await asyncio.gather(t_ls)
-    t_ls.cancel()
-
-
-
-async def run_v1(tc: TwitchClient, str_pipe: StreamerPipe, folnet_pipe: FollowNetPipe, ls_pipe: LiveStreamPipe, n_consumers=50):
-    print('\n\n********** Run V1 ********** ')
+async def run(tc: TwitchClient, str_pipe: StreamerPipe, folnet_pipe: FollowNetPipe, ls_pipe: LiveStreamPipe, n_consumers=50):
     q_foll_ids = asyncio.Queue()
     q_followings = asyncio.Queue()
     q_live_uids = asyncio.Queue()
@@ -198,13 +157,11 @@ async def run_v1(tc: TwitchClient, str_pipe: StreamerPipe, folnet_pipe: FollowNe
 
     # Streamer: follower ids
     await asyncio.gather(t_prod)
-    # print(streamer)
 
     # Folnet: follower's followings
     await q_foll_ids.join()
     [q_followings.put_nowait(batch) for batch in folnet_pipe.new_candidate_batches(remainder=True)]
     [t.cancel() for t in t_followings]
-    # print(folnet)
 
     # LiveStreams
     await q_followings.join()
@@ -212,7 +169,6 @@ async def run_v1(tc: TwitchClient, str_pipe: StreamerPipe, folnet_pipe: FollowNe
 
     await q_live_uids.join()
     [t.cancel() for t in t_total]
-    # print(ls)
 
 
 
@@ -227,16 +183,18 @@ async def main():
         streamer = await Streamer().create(tc, some_name)
         str_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
         folnet = FollowerNetwork(streamer_id=streamer.uid)
-        folnet_pipe = FollowNetPipe(folnet)
+        folnet_pipe = FollowNetPipe(folnet, 200)
         live_streams = LiveStreams()
         ls_pipe = LiveStreamPipe(live_streams)
-        await run_v1(tc=tc, str_pipe=str_pipe, folnet_pipe=folnet_pipe, ls_pipe=ls_pipe, n_consumers=n_consumers)
+        await run(tc=tc, str_pipe=str_pipe, folnet_pipe=folnet_pipe, ls_pipe=ls_pipe, n_consumers=n_consumers)
 
-        print(streamer)
+        streamer.display
+        str_pipe.display
         folnet_pipe.display
         ls_pipe.display
 
         print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
+        print(f'{Col.orange}[📞] Total Calls to Twitch: {tc.http.count_success_resp} {Col.end}')
         print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
         print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
