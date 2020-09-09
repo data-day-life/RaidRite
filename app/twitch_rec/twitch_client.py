@@ -55,12 +55,13 @@ class TwitchClient(Client):
         reply = await self.get_n_followings(user_id, full_reply=True)
         if reply and isinstance(reply, dict):
             total_followings = reply.get('total', -1)
-            if 0 < total_followings < cap_sz:
+            if 0 < total_followings <= cap_sz:
                 data.extend(reply.get('data', []))
+                cursor_val = reply.get('cursor', None)
                 n_remain = total_followings - len(reply.get('data', []))
-                cursor_val = reply.get('cursor', False)
                 if cursor_val and n_remain > 0:
-                    data.extend(await self.get_n_followings(user_id, n_folls=n_remain, cursor=cursor_val))
+                    residual_data = await self.get_n_followings(user_id, n_folls=n_remain, cursor=cursor_val)
+                    data.extend(residual_data)
 
         return data
 
@@ -116,14 +117,14 @@ async def main(name_list):
 
 
     # Followings -- using adapter (above)
-    ver1 = await tc.get_n_followings(stroopc_uid, n_folls=None)
-    print(f'Followings (sz={len(ver1)}): \n {ver1}')
-    num_calls = tc.http.count_success_resp
-    print(f'Num Calls to Twitch:  {num_calls}')
+    # ver1 = await tc.get_n_followings(stroopc_uid, n_folls=None)
+    # print(f'Followings (sz={len(ver1)}): \n {ver1}')
+    # num_calls = tc.http.count_success_resp
+    # print(f'Num Calls to Twitch:  {num_calls}')
 
     ver2 = await tc.fetch_capped_followings(stroopc_uid, 210)
     print(f'Followings (sz={len(ver2)}): \n {ver2}')
-    print(f'Num Calls to Twitch:  {tc.http.count_success_resp - num_calls}')
+    print(f'Num Calls to Twitch:  {tc.http.count_success_resp}')
 
 
     # Chatters
