@@ -143,7 +143,7 @@ async def main():
     t = perf_counter()
 
     some_name = 'emilybarkiss'
-    sample_sz = 300
+    sample_sz = 350
 
     async with TwitchClient() as tc:
         streamer = await Streamer(some_name).create(tc)
