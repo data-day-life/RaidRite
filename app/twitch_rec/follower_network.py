@@ -49,6 +49,7 @@ class FollowNetPipe:
         result += f'{Col.green}<<<<< Pipe: Follower Network {Col.end}\n'
         result += f'{Col.white}  * Total Skipped: {self.num_skipped:>4}{Col.end}\n'
         result += f'{Col.white}  *    Total Kept: {self.num_collected:>4}{Col.end}\n'
+        result += f'{Col.white}  *         Total: {self.num_skipped + self.num_collected:>4}{Col.end}\n'
         result += f'{Col.green} > Followings Counter (sz={len(self.folnet.followings_counter)}){Col.end}\n'
         result += f'     {self.folnet.followings_counter}\n'
         result += f'{Col.green} > Mutual Followings (sz={len(self.folnet.mutual_followings)}){Col.end}\n'
@@ -76,25 +77,22 @@ class FollowNetPipe:
 
         while True:
             follower_id = await q_in.get()
-            if follower_id != 'DONE':
-                following_reply = await tc.get_full_n_followings(follower_id)
-                new_candidate_batch = self.update_followings(following_reply)
-                if new_candidate_batch and q_out:
-                    q_out.put_nowait(new_candidate_batch)
+            followings_found = await tc.fetch_capped_followings(follower_id, self.max_followings)
+            new_candidate_batch = self.update_followings(followings_found)
+            if new_candidate_batch and q_out:
+                q_out.put_nowait(new_candidate_batch)
 
             q_in.task_done()
 
 
-    def update_followings(self, following_reply, remainder=False) -> list:
-        if following_reply:
-            if following_reply.get('total') <= self.max_followings:
-                foll_data = following_reply.get('data')
-                self.folnet.followings_counter.update([following.get('to_id') for following in foll_data])
-                self.num_collected += 1
-            else:
-                self.num_skipped += 1
-
-        return self.new_candidate_batches(remainder)
+    def update_followings(self, foll_data, remainder=False) -> list:
+        if foll_data:
+            self.folnet.followings_counter.update([following.get('to_id') for following in foll_data])
+            self.num_collected += 1
+            return self.new_candidate_batches(remainder)
+        else:
+            self.num_skipped += 1
+            return []
 
 
     def new_candidate_batches(self, remainder=False) -> list:
@@ -143,22 +141,26 @@ async def main():
     some_name = 'emilybarkiss'
     sample_sz = 350
     n_consumers = 100
+    max_followings = 200
 
     async with TwitchClient() as tc:
         streamer = await Streamer().create(tc, some_name)
         streamer_pipe = StreamerPipe(streamer, sample_sz=sample_sz)
         folnet = FollowerNetwork(streamer_id=streamer.uid)
-        folnet_pipe = FollowNetPipe(folnet)
+        folnet_pipe = FollowNetPipe(folnet, max_followings)
         await folnet_pipe.run(tc, streamer_pipe, n_consumers=n_consumers)
 
         streamer.display
+        streamer_pipe.display
         folnet_pipe.display
 
-        print(f'{Col.magenta}🟊 N consumers: {n_consumers} {Col.end}')
-        print(f'{Col.cyan}⏲ Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
+        print(f'{Col.magenta}[🟊] N consumers: {n_consumers} {Col.end}')
+        print(f'{Col.green}[🟊] Max Followings: {max_followings} {Col.end}')
+        print(f'{Col.orange}[📞] Total Calls to Twitch: {tc.http.count_success_resp} {Col.end}')
+        print(f'{Col.cyan}[⏲] Total Time: {round(perf_counter() - t, 3)} sec {Col.end}')
         from datetime import datetime
         print(f'{Col.red}\t««« {datetime.now().strftime("%I:%M.%S %p")} »»» {Col.end}')
 
 
 if __name__ == "__main__":
-    asyncio.run(main(), debug=True)
+    asyncio.run(main())
